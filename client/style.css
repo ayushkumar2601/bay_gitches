@@ -1,0 +1,447 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial Black', Arial, sans-serif;
+    background: linear-gradient(135deg, #FF6B9D, #C44569, #F8B500, #00D2FF);
+    background-size: 400% 400%;
+    animation: gradientShift 8s ease infinite;
+    color: #000;
+    overflow: hidden;
+    position: relative;
+}
+
+/* Neobrutalism gradient animation */
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    25% { background-position: 100% 50%; }
+    50% { background-position: 100% 100%; }
+    75% { background-position: 0% 100%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* Add some floating elements for neobrutalism feel */
+body::before {
+    content: '';
+    position: fixed;
+    top: 10%;
+    left: 5%;
+    width: 100px;
+    height: 100px;
+    background: #FFE066;
+    border: 4px solid #000;
+    border-radius: 50%;
+    z-index: -1;
+    animation: float 6s ease-in-out infinite;
+}
+
+body::after {
+    content: '';
+    position: fixed;
+    bottom: 15%;
+    right: 8%;
+    width: 80px;
+    height: 80px;
+    background: #FF6B9D;
+    border: 4px solid #000;
+    transform: rotate(45deg);
+    z-index: -1;
+    animation: float 8s ease-in-out infinite reverse;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    50% { transform: translateY(-20px) rotate(180deg); }
+}
+
+.screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Neobrutalism Typography */
+h1 {
+    font-size: 3.5rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    color: #000;
+    text-shadow: 
+        4px 4px 0px #FFE066,
+        8px 8px 0px #FF6B9D,
+        12px 12px 0px #00D2FF;
+    margin-bottom: 3rem;
+    text-align: center;
+    letter-spacing: 2px;
+    transform: rotate(-2deg);
+}
+
+/* Neobrutalism Buttons */
+.btn {
+    padding: 18px 35px;
+    font-size: 1.4rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    border: 5px solid #000;
+    background: #FFE066;
+    color: #000;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    box-shadow: 8px 8px 0px #000;
+    letter-spacing: 1px;
+    transform: rotate(-1deg);
+}
+
+.btn:hover {
+    background: #FF6B9D;
+    color: #FFF;
+    transform: rotate(1deg) translate(-4px, -4px);
+    box-shadow: 12px 12px 0px #000;
+}
+
+.btn:active {
+    transform: rotate(0deg) translate(4px, 4px);
+    box-shadow: 4px 4px 0px #000;
+}
+
+.btn.secondary {
+    background: #FF6B9D;
+    color: #FFF;
+    transform: rotate(1deg);
+}
+
+.btn.secondary:hover {
+    background: #C44569;
+    transform: rotate(-1deg) translate(-4px, -4px);
+}
+
+.btn.solo {
+    background: #00D2FF;
+    color: #000;
+    transform: rotate(2deg);
+}
+
+.btn.solo:hover {
+    background: #0097B2;
+    color: #FFF;
+    transform: rotate(-2deg) translate(-4px, -4px);
+}
+
+.menu-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    align-items: center;
+}
+
+/* Neobrutalism Input Fields */
+#roomCodeInput {
+    padding: 15px 20px;
+    font-size: 1.8rem;
+    font-weight: bold;
+    text-align: center;
+    border: 5px solid #000;
+    border-radius: 0;
+    background: #FFF;
+    color: #000;
+    width: 250px;
+    box-shadow: 6px 6px 0px #000;
+    transform: rotate(-1deg);
+    letter-spacing: 3px;
+}
+
+#roomCodeInput:focus {
+    outline: none;
+    background: #FFE066;
+    transform: rotate(1deg);
+}
+
+#joinRoomInput {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 2rem;
+    border: 5px solid #000;
+    box-shadow: 10px 10px 0px #000;
+    transform: rotate(-1deg);
+}
+
+/* Room Info Styling */
+#roomInfo {
+    background: #FFE066;
+    padding: 2.5rem;
+    border: 6px solid #000;
+    box-shadow: 12px 12px 0px #000;
+    transform: rotate(1deg);
+    text-align: center;
+}
+
+#roomInfo h2 {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.room-code {
+    font-size: 3rem;
+    font-weight: 900;
+    color: #FF6B9D;
+    text-shadow: 3px 3px 0px #000;
+    background: #FFF;
+    padding: 10px 20px;
+    border: 4px solid #000;
+    display: inline-block;
+    transform: rotate(-2deg);
+    letter-spacing: 5px;
+}
+
+/* Character Selection Neobrutalism */
+.character-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2rem;
+    justify-content: center;
+    margin: 2rem 0;
+    max-width: 700px;
+}
+
+.character-card {
+    background: #FFF;
+    border: 6px solid #000;
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: #000;
+    min-width: 200px;
+    box-shadow: 8px 8px 0px #000;
+    transform: rotate(-1deg);
+    position: relative;
+}
+
+.character-card:nth-child(1) { background: #FFE066; transform: rotate(1deg); }
+.character-card:nth-child(2) { background: #FF6B9D; transform: rotate(-2deg); }
+.character-card:nth-child(3) { background: #00D2FF; transform: rotate(2deg); }
+.character-card:nth-child(4) { background: #98FB98; transform: rotate(-1deg); }
+
+.character-card:hover {
+    transform: rotate(0deg) translate(-6px, -6px);
+    box-shadow: 14px 14px 0px #000;
+}
+
+.character-card.selected {
+    border-color: #000;
+    border-width: 8px;
+    background: #FFF !important;
+    transform: rotate(0deg) scale(1.05);
+    box-shadow: 0px 0px 0px 4px #FFE066, 16px 16px 0px #000;
+}
+
+.character-avatar {
+    width: 100px;
+    height: 100px;
+    border: 5px solid #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+    overflow: hidden;
+    background: #FFF;
+    box-shadow: 4px 4px 0px #000;
+    transform: rotate(-2deg);
+}
+
+.character-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.character-image:not([src]), .character-image[src=""] {
+    display: none;
+}
+
+/* Fallback for missing character images */
+.character-avatar:has(.character-image:not([src])):before,
+.character-avatar:has(.character-image[src=""]):before {
+    content: "?";
+    font-size: 3rem;
+    font-weight: bold;
+    color: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
+.character-card h3 {
+    margin: 1rem 0;
+    font-size: 1.3rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.character-card p {
+    margin: 0.5rem 0;
+    font-size: 1rem;
+    font-weight: bold;
+}
+
+.character-desc {
+    font-style: italic;
+    color: #333;
+    font-weight: normal;
+}
+
+/* Game UI Neobrutalism */
+#game {
+    padding: 20px;
+}
+
+.game-ui {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    background: #FFF;
+    padding: 15px;
+    border: 5px solid #000;
+    box-shadow: 6px 6px 0px #000;
+    transform: rotate(-1deg);
+}
+
+.player-info {
+    display: flex;
+    gap: 3rem;
+}
+
+.player-stats div, .abilities div {
+    margin-bottom: 8px;
+    font-weight: 900;
+    font-size: 1.1rem;
+    text-transform: uppercase;
+}
+
+.controls {
+    font-size: 1rem;
+    font-weight: bold;
+    text-align: right;
+    background: #FFE066;
+    padding: 10px;
+    border: 3px solid #000;
+    transform: rotate(1deg);
+}
+
+#gameCanvas {
+    border: 8px solid #000;
+    background: linear-gradient(45deg, #E8F5FF, #FFF0E8);
+    display: block;
+    margin: 0 auto;
+    box-shadow: 10px 10px 0px #000;
+    transform: rotate(-0.5deg);
+}
+
+/* Messages Neobrutalism */
+#messages {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 2.5rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    color: #000;
+    background: #FFE066;
+    padding: 20px 40px;
+    border: 6px solid #000;
+    box-shadow: 8px 8px 0px #000;
+    pointer-events: none;
+    z-index: 1000;
+    letter-spacing: 2px;
+    transform: translate(-50%, -50%) rotate(-2deg);
+}
+
+/* Game Over Screen Neobrutalism */
+.result-container {
+    text-align: center;
+    background: #FFF;
+    padding: 4rem;
+    border: 8px solid #000;
+    box-shadow: 16px 16px 0px #000;
+    transform: rotate(-1deg);
+    position: relative;
+}
+
+.result-container::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    right: -10px;
+    bottom: -10px;
+    background: #FF6B9D;
+    border: 8px solid #000;
+    z-index: -1;
+    transform: rotate(2deg);
+}
+
+#resultTitle {
+    margin-bottom: 2rem;
+    color: #000;
+    text-shadow: 
+        3px 3px 0px #FFE066,
+        6px 6px 0px #FF6B9D;
+}
+
+.meme-text {
+    font-size: 2rem;
+    font-weight: bold;
+    margin: 2rem 0;
+    padding: 1.5rem;
+    background: #FFE066;
+    border: 5px solid #000;
+    box-shadow: 6px 6px 0px #000;
+    transform: rotate(1deg);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Animations */
+@keyframes flash {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+.flash {
+    animation: flash 0.2s ease-in-out 3;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-8px) rotate(-1deg); }
+    75% { transform: translateX(8px) rotate(1deg); }
+}
+
+.shake {
+    animation: shake 0.5s ease-in-out;
+}
