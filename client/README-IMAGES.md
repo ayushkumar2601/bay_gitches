@@ -1,13 +1,13 @@
 # Character Images Setup
 
-## Required Files
+## ✅ Images Found!
 
-You need to add 4 character images to this folder:
+Your character images are correctly placed in the `public` folder:
 
-- `1.jpeg` - Size Beast character
-- `2.jpeg` - Sound Blaster character  
-- `3.jpeg` - Toxic Thrower character
-- `4.jpeg` - Laser Eyes character
+- ✅ `public/1.jpeg` - Size Beast character
+- ✅ `public/2.jpeg` - Sound Blaster character  
+- ✅ `public/3.jpeg` - Toxic Thrower character
+- ✅ `public/4.jpeg` - Laser Eyes character
 
 ## Image Requirements
 
@@ -15,29 +15,28 @@ You need to add 4 character images to this folder:
 - **Size**: Any size (will be automatically resized to fit)
 - **Aspect Ratio**: Square images work best (1:1 ratio)
 - **File Names**: Must be exactly `1.jpeg`, `2.jpeg`, `3.jpeg`, `4.jpeg`
+- **Location**: Must be in the `public` folder (root level)
 
-## How to Add Images
+## Server Configuration
 
-1. Save your character images with the correct names
-2. Place them directly in the `client` folder (same folder as this README)
-3. Restart the server: `npm start`
-4. The images should now appear in the character selection screen
+The images are served at:
+- `http://localhost:3000/public/1.jpeg`
+- `http://localhost:3000/public/2.jpeg`
+- `http://localhost:3000/public/3.jpeg`
+- `http://localhost:3000/public/4.jpeg`
 
 ## Troubleshooting
 
 If images don't appear:
 
 1. Check file names are exactly: `1.jpeg`, `2.jpeg`, `3.jpeg`, `4.jpeg`
-2. Make sure files are in the `client` folder
+2. Make sure files are in the `public` folder (not client folder)
 3. Check the debug endpoint: `http://localhost:3000/debug/images`
 4. Look at browser console for error messages (F12 → Console)
 5. Restart the server after adding images
 
 ## Current Status
 
-Run this command to check which images are found:
-```bash
-curl http://localhost:3000/debug/images
-```
+✅ All character images found and properly configured!
 
-The game will work without images (showing colored squares as fallback), but images make it much more fun!
+The images should now appear in both the character selection screen and during gameplay.

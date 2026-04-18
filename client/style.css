@@ -213,7 +213,82 @@ h1 {
     letter-spacing: 5px;
 }
 
-/* Character Selection Neobrutalism */
+/* Difficulty Selection Neobrutalism */
+.difficulty-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+    justify-content: center;
+    margin: 2rem 0;
+    max-width: 900px;
+}
+
+.difficulty-card {
+    background: #FFF;
+    border: 6px solid #000;
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: #000;
+    min-width: 200px;
+    box-shadow: 8px 8px 0px #000;
+    transform: rotate(-1deg);
+    position: relative;
+}
+
+.difficulty-card:nth-child(1) { 
+    background: #98FB98; 
+    transform: rotate(1deg); 
+}
+.difficulty-card:nth-child(2) { 
+    background: #FFE066; 
+    transform: rotate(-2deg); 
+}
+.difficulty-card:nth-child(3) { 
+    background: #FF6B9D; 
+    transform: rotate(2deg); 
+}
+
+.difficulty-card:hover {
+    transform: rotate(0deg) translate(-6px, -6px);
+    box-shadow: 14px 14px 0px #000;
+}
+
+.difficulty-card.selected {
+    border-color: #000;
+    border-width: 8px;
+    background: #FFF !important;
+    transform: rotate(0deg) scale(1.05);
+    box-shadow: 0px 0px 0px 4px #00D2FF, 16px 16px 0px #000;
+}
+
+.difficulty-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    display: block;
+}
+
+.difficulty-card h3 {
+    margin: 1rem 0;
+    font-size: 1.5rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.difficulty-card p {
+    margin: 0.5rem 0;
+    font-size: 1.1rem;
+    font-weight: bold;
+}
+
+.difficulty-desc {
+    font-style: italic;
+    color: #333;
+    font-weight: normal !important;
+    font-size: 0.9rem !important;
+}
 .character-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -350,6 +425,25 @@ h1 {
     padding: 10px;
     border: 3px solid #000;
     transform: rotate(1deg);
+}
+
+.btn-small {
+    padding: 5px 10px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    border: 2px solid #000;
+    background: #FFF;
+    color: #000;
+    cursor: pointer;
+    margin: 2px;
+    box-shadow: 2px 2px 0px #000;
+}
+
+.btn-small:hover {
+    background: #FF6B9D;
+    color: #FFF;
+    transform: translate(-1px, -1px);
+    box-shadow: 3px 3px 0px #000;
 }
 
 #gameCanvas {

@@ -186,9 +186,15 @@ io.on('connection', (socket) => {
     if (!player.canMove) return;
     
     // Update position with bounds checking
-    player.x = Math.max(0, Math.min(750, data.x));
-    player.y = Math.max(0, Math.min(350, data.y));
+    player.x = Math.max(20, Math.min(780, data.x));
+    player.y = Math.max(20, Math.min(380, data.y));
     
+    // Update state if provided
+    if (data.state) {
+      player.state = data.state;
+    }
+    
+    // Broadcast to room (throttled on client side)
     io.to(playerInfo.roomCode).emit('stateUpdate', room.gameState);
   });
 

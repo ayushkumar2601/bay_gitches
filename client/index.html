@@ -28,6 +28,31 @@
         </div>
     </div>
 
+    <div id="difficultySelect" class="screen hidden">
+        <h1>🎯 SELECT DIFFICULTY 🎯</h1>
+        <div class="difficulty-grid">
+            <div class="difficulty-card" data-difficulty="easy">
+                <div class="difficulty-icon">😴</div>
+                <h3>EASY</h3>
+                <p>Sleepy Bot</p>
+                <p class="difficulty-desc">"Bot moves slow, attacks rarely, perfect for beginners"</p>
+            </div>
+            <div class="difficulty-card" data-difficulty="medium">
+                <div class="difficulty-icon">😐</div>
+                <h3>MEDIUM</h3>
+                <p>Balanced Bot</p>
+                <p class="difficulty-desc">"Fair fight, good challenge for most players"</p>
+            </div>
+            <div class="difficulty-card" data-difficulty="hard">
+                <div class="difficulty-icon">😈</div>
+                <h3>HARD</h3>
+                <p>Tryhard Bot</p>
+                <p class="difficulty-desc">"Fast, aggressive, uses abilities frequently"</p>
+            </div>
+        </div>
+        <button id="confirmDifficultyBtn" class="btn hidden">CONTINUE TO CHARACTER SELECT</button>
+    </div>
+
     <div id="characterSelect" class="screen hidden">
         <h1>🎭 SELECT YOUR FIGHTER 🎭</h1>
         <div class="character-grid">
@@ -82,6 +107,11 @@
             <div class="controls">
                 <div>Move: Arrow Keys / WASD</div>
                 <div>Attack: SPACE | Ability: E | Ultimate: Q</div>
+                <div>
+                    <button onclick="toggleMute()" class="btn-small">🔊 MUTE</button>
+                    <button onclick="setVolume(0.3)" class="btn-small">🔉 LOW</button>
+                    <button onclick="setVolume(0.7)" class="btn-small">🔊 HIGH</button>
+                </div>
             </div>
         </div>
         <canvas id="gameCanvas" width="800" height="400"></canvas>

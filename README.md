@@ -61,11 +61,13 @@ Before each match, choose your fighter:
 - **Laser Eyes**: Laser Beam ability - instant laser damage from eyes
 
 ### Character Images
-Place your character images in the client folder:
-- `1.jpeg` - Size Beast character
-- `2.jpeg` - Sound Blaster character  
-- `3.jpeg` - Toxic Thrower character
-- `4.jpeg` - Laser Eyes character
+Your character images should be placed in the `public` folder:
+- `public/1.jpeg` - Size Beast character
+- `public/2.jpeg` - Sound Blaster character  
+- `public/3.jpeg` - Toxic Thrower character
+- `public/4.jpeg` - Laser Eyes character
+
+The images are automatically served at `/public/1.jpeg`, `/public/2.jpeg`, etc.
 
 ### Room System (Multiplayer)
 - **Create Room**: Select character, then get a 4-digit code
