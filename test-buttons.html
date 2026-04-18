@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Button Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #333;
+            color: white;
+        }
+        .test-btn {
+            padding: 15px 30px;
+            margin: 10px;
+            font-size: 16px;
+            background: #FFE066;
+            color: #000;
+            border: 3px solid #000;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .test-btn:hover {
+            background: #FF6B9D;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>Button Functionality Test</h1>
+    
+    <button id="testBtn1" class="test-btn">Test Button 1</button>
+    <button id="testBtn2" class="test-btn">Test Button 2</button>
+    <button id="testBtn3" class="test-btn">Test Button 3</button>
+    
+    <div id="output"></div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Test page loaded');
+            
+            const btn1 = document.getElementById('testBtn1');
+            const btn2 = document.getElementById('testBtn2');
+            const btn3 = document.getElementById('testBtn3');
+            const output = document.getElementById('output');
+            
+            console.log('Buttons found:', {
+                btn1: !!btn1,
+                btn2: !!btn2,
+                btn3: !!btn3
+            });
+            
+            if (btn1) {
+                btn1.addEventListener('click', () => {
+                    console.log('Button 1 clicked');
+                    output.innerHTML += '<p>Button 1 clicked!</p>';
+                });
+            }
+            
+            if (btn2) {
+                btn2.addEventListener('click', () => {
+                    console.log('Button 2 clicked');
+                    output.innerHTML += '<p>Button 2 clicked!</p>';
+                });
+            }
+            
+            if (btn3) {
+                btn3.addEventListener('click', () => {
+                    console.log('Button 3 clicked');
+                    output.innerHTML += '<p>Button 3 clicked!</p>';
+                });
+            }
+        });
+    </script>
+</body>
+</html>

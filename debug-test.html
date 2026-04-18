@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Test - Meme Fighters</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #0a0a0a;
+            color: white;
+            padding: 20px;
+        }
+        .test-btn {
+            padding: 20px 40px;
+            margin: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            background: #FFE066;
+            color: #000;
+            border: 4px solid #000;
+            border-radius: 15px;
+            cursor: pointer;
+            display: block;
+            width: 300px;
+        }
+        .test-btn:hover {
+            background: #FF6B9D;
+            color: white;
+        }
+        #output {
+            margin-top: 20px;
+            padding: 20px;
+            background: #333;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Debug Test Page</h1>
+    <p>Testing if basic JavaScript and buttons work...</p>
+    
+    <button id="testBtn1" class="test-btn">🏠 Test Create Room</button>
+    <button id="testBtn2" class="test-btn">🚪 Test Join Room</button>
+    <button id="testBtn3" class="test-btn">🤖 Test Play Solo</button>
+    
+    <div id="output">
+        <h3>Debug Output:</h3>
+        <div id="log"></div>
+    </div>
+    
+    <script>
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML += '<p>' + new Date().toLocaleTimeString() + ': ' + message + '</p>';
+            console.log(message);
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            log('✅ DOM Content Loaded');
+            
+            // Test button existence
+            const btn1 = document.getElementById('testBtn1');
+            const btn2 = document.getElementById('testBtn2');
+            const btn3 = document.getElementById('testBtn3');
+            
+            log('Button check: btn1=' + !!btn1 + ', btn2=' + !!btn2 + ', btn3=' + !!btn3);
+            
+            // Add event listeners
+            if (btn1) {
+                btn1.addEventListener('click', () => {
+                    log('🏠 CREATE ROOM button clicked!');
+                    alert('Create Room button works!');
+                });
+                log('✅ Create Room listener added');
+            }
+            
+            if (btn2) {
+                btn2.addEventListener('click', () => {
+                    log('🚪 JOIN ROOM button clicked!');
+                    alert('Join Room button works!');
+                });
+                log('✅ Join Room listener added');
+            }
+            
+            if (btn3) {
+                btn3.addEventListener('click', () => {
+                    log('🤖 PLAY SOLO button clicked!');
+                    alert('Play Solo button works!');
+                });
+                log('✅ Play Solo listener added');
+            }
+            
+            log('🎯 All event listeners setup complete');
+        });
+        
+        // Test if JavaScript is working at all
+        log('🚀 JavaScript is running');
+    </script>
+</body>
+</html>

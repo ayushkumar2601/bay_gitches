@@ -75,6 +75,24 @@ function generateRoomCode() {
   return Math.floor(1000 + Math.random() * 9000).toString();
 }
 
+// Check Tic Tac Toe winner
+function checkTicTacToeWinner(board) {
+  const winPatterns = [
+    [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+    [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+    [0, 4, 8], [2, 4, 6] // Diagonals
+  ];
+  
+  for (const pattern of winPatterns) {
+    const [a, b, c] = pattern;
+    if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+      return board[a] === 'X' ? 1 : 2; // Return player number
+    }
+  }
+  
+  return null;
+}
+
 // Meme texts for losers
 const memeTexts = [
   "I lost like an NPC 💀",
@@ -85,44 +103,46 @@ const memeTexts = [
   "Imagine losing to a meme 🗿"
 ];
 
+// Game types
+const GAME_TYPES = {
+  MEME_FIGHTERS: 'memeFighters',
+  TIC_TAC_TOE: 'ticTacToe',
+  REACTION_CLICK: 'reactionClick'
+};
+
 io.on('connection', (socket) => {
   console.log('Player connected:', socket.id, 'from', socket.handshake.address);
 
   socket.on('createRoom', (data) => {
     const roomCode = generateRoomCode();
-    const characterId = data ? data.characterId : 1; // Default to character 1
     
     const room = {
       code: roomCode,
       players: [],
-      gameState: {
-        player1: { 
-          id: socket.id, 
-          x: 100, 
-          y: 200, 
-          health: 100, 
-          canMove: true, 
-          hasUlt: true,
-          characterId: characterId,
-          state: 'idle'
-        },
-        player2: null
-      },
-      gameStarted: false
+      selectedGame: null,
+      gameConfirmed: false,
+      currentGameState: null,
+      gameStarted: false,
+      playerCharacters: {}
     };
     
     rooms.set(roomCode, room);
     room.players.push(socket.id);
+    
+    // Store character selection if provided
+    if (data && data.characterId) {
+      room.playerCharacters[socket.id] = data.characterId;
+    }
+    
     players.set(socket.id, { roomCode, playerNumber: 1 });
     
     socket.join(roomCode);
-    console.log(`Room ${roomCode} created by player ${socket.id} with character ${characterId}`);
+    console.log(`Room ${roomCode} created by player ${socket.id}`);
     socket.emit('roomCreated', { roomCode, playerNumber: 1 });
   });
 
   socket.on('joinRoom', (data) => {
     const roomCode = typeof data === 'string' ? data : data.roomCode;
-    const characterId = data.characterId || 2; // Default to character 2
     const room = rooms.get(roomCode);
     
     if (!room) {
@@ -136,42 +156,81 @@ io.on('connection', (socket) => {
     }
     
     room.players.push(socket.id);
-    room.gameState.player2 = { 
-      id: socket.id, 
-      x: 600, 
-      y: 200, 
-      health: 100, 
-      canMove: true, 
-      hasUlt: true,
-      characterId: characterId,
-      state: 'idle'
-    };
+    
+    // Store character selection if provided
+    if (data && data.characterId) {
+      room.playerCharacters[socket.id] = data.characterId;
+    }
+    
     players.set(socket.id, { roomCode, playerNumber: 2 });
     
     socket.join(roomCode);
-    room.gameStarted = true;
+    console.log(`Player ${socket.id} joined room ${roomCode}`);
     
-    console.log(`Player ${socket.id} joined room ${roomCode} with character ${characterId}. Game starting!`);
+    socket.emit('roomCreated', { roomCode, playerNumber: 2 });
     
-    // Set abilities based on character IDs
-    const characters = [
-      { id: 1, ability: 'size_boost' },
-      { id: 2, ability: 'sound_power' },
-      { id: 3, ability: 'green_projectile' },
-      { id: 4, ability: 'laser_beam' }
-    ];
-    
-    const p1Char = characters.find(c => c.id === room.gameState.player1.characterId) || characters[0];
-    const p2Char = characters.find(c => c.id === room.gameState.player2.characterId) || characters[1];
-    
-    room.gameState.player1.ability = p1Char.ability;
-    room.gameState.player2.ability = p2Char.ability;
-    
-    io.to(roomCode).emit('startGame', {
-      player1: room.gameState.player1,
-      player2: room.gameState.player2
-    });
+    // If both players have joined, they can now select games
+    if (room.players.length === 2) {
+      io.to(roomCode).emit('bothPlayersReady');
+    }
   });
+
+  // Game selection events
+  socket.on('selectGame', (data) => {
+    const playerInfo = players.get(socket.id);
+    if (!playerInfo) return;
+    
+    const room = rooms.get(playerInfo.roomCode);
+    if (!room) return;
+    
+    room.selectedGame = data.game;
+    console.log(`Game selected in room ${playerInfo.roomCode}: ${data.game}`);
+    
+    // Notify other player
+    socket.to(playerInfo.roomCode).emit('gameSelected', { game: data.game });
+  });
+
+  socket.on('confirmGame', (data) => {
+    const playerInfo = players.get(socket.id);
+    if (!playerInfo) return;
+    
+    const room = rooms.get(playerInfo.roomCode);
+    if (!room || !room.selectedGame) return;
+    
+    room.gameConfirmed = true;
+    console.log(`Game confirmed in room ${playerInfo.roomCode}: ${room.selectedGame}`);
+    
+    // Start the selected game
+    io.to(playerInfo.roomCode).emit('startSelectedGame', { game: room.selectedGame });
+    
+    // Initialize game-specific state
+    initializeGameState(room, room.selectedGame);
+  });
+
+  function initializeGameState(room, gameType) {
+    switch (gameType) {
+      case GAME_TYPES.MEME_FIGHTERS:
+        // Meme Fighters uses existing character selection system
+        break;
+        
+      case GAME_TYPES.TIC_TAC_TOE:
+        room.currentGameState = {
+          board: Array(9).fill(''),
+          currentPlayer: 1,
+          gameActive: true,
+          winner: null
+        };
+        break;
+        
+      case GAME_TYPES.REACTION_CLICK:
+        room.currentGameState = {
+          scores: { 1: 0, 2: 0 },
+          gameActive: false,
+          roundActive: false
+        };
+        break;
+    }
+  }
 
   socket.on('playerMove', (data) => {
     const playerInfo = players.get(socket.id);
@@ -386,6 +445,153 @@ io.on('connection', (socket) => {
         memeText
       });
     }
+  });
+
+  // Tic Tac Toe game events
+  socket.on('ticTacMove', (data) => {
+    const playerInfo = players.get(socket.id);
+    if (!playerInfo) return;
+    
+    const room = rooms.get(playerInfo.roomCode);
+    if (!room || !room.currentGameState || room.selectedGame !== GAME_TYPES.TIC_TAC_TOE) return;
+    
+    const gameState = room.currentGameState;
+    const cellIndex = data.cell;
+    
+    // Validate move
+    if (!gameState.gameActive || 
+        gameState.currentPlayer !== playerInfo.playerNumber ||
+        gameState.board[cellIndex] !== '') {
+      return;
+    }
+    
+    // Make move
+    const symbol = playerInfo.playerNumber === 1 ? 'X' : 'O';
+    gameState.board[cellIndex] = symbol;
+    
+    // Check for winner
+    const winner = checkTicTacToeWinner(gameState.board);
+    if (winner) {
+      gameState.winner = winner;
+      gameState.gameActive = false;
+    } else if (!gameState.board.includes('')) {
+      // Draw
+      gameState.winner = 'draw';
+      gameState.gameActive = false;
+    } else {
+      // Switch player
+      gameState.currentPlayer = gameState.currentPlayer === 1 ? 2 : 1;
+    }
+    
+    // Broadcast update
+    io.to(playerInfo.roomCode).emit('ticTacUpdate', gameState);
+    
+    // Handle game over
+    if (!gameState.gameActive) {
+      setTimeout(() => {
+        const gameOverData = {
+          winner: gameState.winner === 'draw' ? null : gameState.winner,
+          message: gameState.winner === 'draw' ? "It's a draw!" : `Player ${gameState.winner} wins!`
+        };
+        io.to(playerInfo.roomCode).emit('gameOver', gameOverData);
+      }, 1500);
+    }
+  });
+
+  // Reaction Click game events
+  socket.on('startReactionRound', () => {
+    const playerInfo = players.get(socket.id);
+    if (!playerInfo) return;
+    
+    const room = rooms.get(playerInfo.roomCode);
+    if (!room || !room.currentGameState || room.selectedGame !== GAME_TYPES.REACTION_CLICK) return;
+    
+    const gameState = room.currentGameState;
+    if (gameState.roundActive) return;
+    
+    gameState.roundActive = true;
+    gameState.roundStartTime = null;
+    gameState.clickedPlayers = [];
+    
+    // Random delay between 2-5 seconds
+    const delay = 2000 + Math.random() * 3000;
+    
+    // Notify players to wait
+    io.to(playerInfo.roomCode).emit('reactionStart', { delay });
+    
+    // Start the round after delay
+    setTimeout(() => {
+      if (gameState.roundActive) {
+        gameState.roundStartTime = Date.now();
+        io.to(playerInfo.roomCode).emit('reactionGo');
+      }
+    }, delay);
+  });
+
+  socket.on('reactionClick', () => {
+    const playerInfo = players.get(socket.id);
+    if (!playerInfo) return;
+    
+    const room = rooms.get(playerInfo.roomCode);
+    if (!room || !room.currentGameState || room.selectedGame !== GAME_TYPES.REACTION_CLICK) return;
+    
+    const gameState = room.currentGameState;
+    
+    // Check if round is active and started
+    if (!gameState.roundActive || !gameState.roundStartTime) {
+      // Too early click
+      gameState.roundActive = false;
+      io.to(playerInfo.roomCode).emit('reactionResult', {
+        winner: null,
+        message: 'Too early! Wait for the signal.',
+        earlyClicker: playerInfo.playerNumber
+      });
+      return;
+    }
+    
+    // Check if player already clicked
+    if (gameState.clickedPlayers.includes(playerInfo.playerNumber)) return;
+    
+    const clickTime = Date.now();
+    const reactionTime = clickTime - gameState.roundStartTime;
+    
+    // First valid click wins
+    gameState.roundActive = false;
+    gameState.scores[playerInfo.playerNumber]++;
+    
+    io.to(playerInfo.roomCode).emit('reactionResult', {
+      winner: playerInfo.playerNumber,
+      time: reactionTime,
+      scores: gameState.scores
+    });
+  });
+
+  // Rematch and game change events
+  socket.on('playAgain', () => {
+    const playerInfo = players.get(socket.id);
+    if (!playerInfo) return;
+    
+    const room = rooms.get(playerInfo.roomCode);
+    if (!room) return;
+    
+    // Reset game state based on current game
+    initializeGameState(room, room.selectedGame);
+    io.to(playerInfo.roomCode).emit('startSelectedGame', { game: room.selectedGame });
+  });
+
+  socket.on('changeGame', () => {
+    const playerInfo = players.get(socket.id);
+    if (!playerInfo) return;
+    
+    const room = rooms.get(playerInfo.roomCode);
+    if (!room) return;
+    
+    // Reset game selection
+    room.selectedGame = null;
+    room.gameConfirmed = false;
+    room.currentGameState = null;
+    
+    io.to(playerInfo.roomCode).emit('gameChanged');
   });
 
   socket.on('disconnect', () => {

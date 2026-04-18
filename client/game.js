@@ -39,25 +39,6 @@ CHARACTERS.forEach(char => {
     img.src = char.image;
     characterImages[char.id] = img;
 });
-// CHARACTER SYSTEM END
-
-// GAME CONSTANTS
-const GAME_CONFIG = {
-    FPS: 60,
-    NETWORK_UPDATE_RATE: 50, // ms
-    PLAYER_SPEED: 5,
-    FRICTION: 0.8,
-    HITBOX_SIZE: 80, // Increased from 60 for bigger, more visible characters
-    PROJECTILE_SPEED: 8,
-    CANVAS_WIDTH: 800,
-    CANVAS_HEIGHT: 400,
-    // Animation constants
-    ANIMATION_SCALE_ATTACK: 1.4, // More dramatic scaling
-    ANIMATION_SCALE_ABILITY: 1.6,
-    ANIMATION_DURATION_ATTACK: 400, // Longer animations
-    ANIMATION_DURATION_ABILITY: 600,
-    ANIMATION_DURATION_HIT: 300
-};
 
 // AUDIO SYSTEM - Preloaded meme sounds
 const MEME_SOUNDS = [];
@@ -65,7 +46,7 @@ let masterVolume = 0.7;
 let lastSoundTime = 0;
 let audioMuted = false;
 let currentlyPlayingAudio = null;
-let lastPlayedIndex = -1; // Track last played sound to ensure variety
+let lastPlayedIndex = -1;
 
 // Preload audio files with actual names
 function preloadAudio() {
@@ -129,40 +110,33 @@ function playMemeSound(eventType = 'random') {
     if (audioMuted || MEME_SOUNDS.length === 0) return;
     
     const now = Date.now();
-    const minInterval = 100; // Reduced interval for better responsiveness
+    const minInterval = 100;
     
     if (now - lastSoundTime < minInterval) return;
     
     try {
-        // Only play sounds for specific events
         const allowedEvents = ['hit', 'miss', 'gameOver', 'characterSelect'];
         if (!allowedEvents.includes(eventType)) return;
         
-        // Stop any currently playing audio to prevent overlap
         stopCurrentAudio();
         
         let sound;
         let soundIndex;
         
         if (eventType === 'characterSelect') {
-            // Use cid.mp3.mpeg for character selection (index 0)
             soundIndex = 0;
             sound = MEME_SOUNDS[0];
         } else {
-            // Use truly random sound from ALL files (indices 0-9) for hit/miss/gameOver
             soundIndex = getRandomSoundIndex(0, MEME_SOUNDS.length - 1);
             sound = MEME_SOUNDS[soundIndex];
         }
         
-        // Clone audio for independent control
         const soundClone = sound.cloneNode();
         soundClone.volume = masterVolume;
         soundClone.currentTime = 0;
         
-        // Set as currently playing
         currentlyPlayingAudio = soundClone;
         
-        // Play only first 4 seconds
         soundClone.play().then(() => {
             const timeoutId = setTimeout(() => {
                 if (currentlyPlayingAudio === soundClone) {
@@ -170,9 +144,8 @@ function playMemeSound(eventType = 'random') {
                     soundClone.currentTime = 0;
                     currentlyPlayingAudio = null;
                 }
-            }, 4000); // Stop after 4 seconds
+            }, 4000);
             
-            // Clear timeout if audio ends naturally
             soundClone.addEventListener('ended', () => {
                 clearTimeout(timeoutId);
                 if (currentlyPlayingAudio === soundClone) {
@@ -183,7 +156,7 @@ function playMemeSound(eventType = 'random') {
         }).catch(e => console.warn('Audio play failed:', e));
         
         lastSoundTime = now;
-        console.log(`Playing sound ${soundIndex} (${MEME_SOUNDS[soundIndex] ? 'loaded' : 'loading'}) for: ${eventType}`);
+        console.log(`Playing sound ${soundIndex} for: ${eventType}`);
     } catch (error) {
         console.warn('Error playing meme sound:', error);
     }
@@ -213,50 +186,278 @@ document.addEventListener('DOMContentLoaded', () => {
     preloadAudio();
 });
 
-class MemeFighters {
+// MAIN GAME HUB CLASS
+class GameHub {
     constructor() {
+        console.log('🎮 GameHub constructor called');
+        
         // Core systems
         this.socket = io();
-        this.canvas = null;
-        this.ctx = null;
-        this.lastTime = 0;
-        this.deltaTime = 0;
-        
-        // Game state
-        this.gameState = null;
+        this.currentGame = null;
+        this.selectedGame = null;
         this.playerNumber = null;
+        this.roomCode = null;
+        this.gameMode = null;
+        
+        // Game instances
+        this.memeFighters = null;
+        this.ticTacToe = null;
+        this.reactionClick = null;
+        
+        // UI System
+        this.currentScreen = 'lobby';
+        this.isTransitioning = false;
+        
+        // Character/difficulty selection
         this.selectedCharacter = null;
         this.selectedDifficulty = null;
-        this.gameMode = null;
         this.roomCodeToJoin = null;
-        
-        // Input system
-        this.keys = {};
-        this.lastNetworkUpdate = 0;
-        
-        // Game objects
-        this.projectiles = [];
-        this.particles = [];
-        this.animations = [];
-        
-        // Solo mode
-        this.isSoloMode = false;
-        this.botAI = null;
-        
-        // Camera effects
-        this.screenShake = { x: 0, y: 0, intensity: 0 };
         
         this.init();
     }
     
-    // INITIALIZATION
     init() {
+        console.log('🚀 GameHub initializing...');
         this.setupEventListeners();
         this.setupSocketEvents();
-        this.setupInputSystem();
         this.setupConnectionDebug();
+        this.showScreen('lobby');
+        console.log('✅ GameHub initialized');
     }
     
+    // SCREEN MANAGEMENT
+    showScreen(screenId) {
+        console.log(`📺 Showing screen: ${screenId}`);
+        
+        if (this.isTransitioning) return;
+        
+        this.isTransitioning = true;
+        const currentScreenEl = document.querySelector('.screen.active');
+        const newScreenEl = document.getElementById(screenId);
+        
+        if (!newScreenEl) {
+            console.error(`Screen ${screenId} not found`);
+            this.isTransitioning = false;
+            return;
+        }
+        
+        // Fade out current screen
+        if (currentScreenEl) {
+            currentScreenEl.classList.remove('active');
+        }
+        
+        // Fade in new screen after delay
+        setTimeout(() => {
+            newScreenEl.classList.add('active');
+            this.currentScreen = screenId;
+            this.isTransitioning = false;
+            
+            // Screen-specific setup
+            this.onScreenChanged(screenId);
+        }, currentScreenEl ? 250 : 0);
+    }
+    
+    onScreenChanged(screenId) {
+        switch (screenId) {
+            case 'gameSelect':
+                setTimeout(() => {
+                    playMemeSound('characterSelect');
+                }, 500);
+                break;
+            case 'characterSelect':
+                setTimeout(() => {
+                    playMemeSound('characterSelect');
+                }, 500);
+                break;
+        }
+    }
+    
+    // ENHANCED UI INTERACTIONS
+    addButtonClickEffect(element) {
+        element.classList.add('clicked');
+        setTimeout(() => {
+            element.classList.remove('clicked');
+        }, 150);
+    }
+    
+    // EVENT LISTENERS
+    setupEventListeners() {
+        console.log('🔧 Setting up event listeners...');
+        
+        // Main menu buttons
+        const createRoomBtn = document.getElementById('createRoomBtn');
+        const joinRoomBtn = document.getElementById('joinRoomBtn');
+        const playSoloBtn = document.getElementById('playSoloBtn');
+        
+        if (!createRoomBtn || !joinRoomBtn || !playSoloBtn) {
+            console.error('❌ Main menu buttons not found in DOM');
+            return;
+        }
+        
+        createRoomBtn.addEventListener('click', (e) => {
+            console.log('🏠 Create Room button clicked');
+            this.addButtonClickEffect(e.target);
+            this.gameMode = 'create';
+            this.showGameSelection();
+        });
+        
+        joinRoomBtn.addEventListener('click', (e) => {
+            console.log('🚪 Join Room button clicked');
+            this.addButtonClickEffect(e.target);
+            document.getElementById('joinRoomInput').classList.remove('hidden');
+            document.querySelector('.main-menu').classList.add('hidden');
+        });
+        
+        playSoloBtn.addEventListener('click', (e) => {
+            console.log('🤖 Play Solo button clicked');
+            this.addButtonClickEffect(e.target);
+            this.gameMode = 'solo';
+            this.showDifficultySelection();
+        });
+        
+        // Join room functionality
+        const joinBtn = document.getElementById('joinBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
+        
+        if (joinBtn && cancelBtn) {
+            joinBtn.addEventListener('click', (e) => {
+                const roomCode = document.getElementById('roomCodeInput').value;
+                if (roomCode.length === 4) {
+                    this.addButtonClickEffect(e.target);
+                    this.gameMode = 'join';
+                    this.roomCodeToJoin = roomCode;
+                    this.showGameSelection();
+                }
+            });
+            
+            cancelBtn.addEventListener('click', (e) => {
+                this.addButtonClickEffect(e.target);
+                document.getElementById('joinRoomInput').classList.add('hidden');
+                document.querySelector('.main-menu').classList.remove('hidden');
+                document.getElementById('roomCodeInput').value = '';
+            });
+        }
+        
+        // Game selection
+        document.querySelectorAll('.game-card').forEach(card => {
+            card.addEventListener('click', () => {
+                this.selectGame(card.dataset.game);
+            });
+        });
+        
+        // Difficulty selection
+        document.querySelectorAll('.difficulty-card').forEach(card => {
+            card.addEventListener('click', () => {
+                this.selectDifficulty(card.dataset.difficulty);
+            });
+        });
+        
+        // Character selection
+        document.querySelectorAll('.character-card').forEach(card => {
+            card.addEventListener('click', () => {
+                this.selectCharacter(parseInt(card.dataset.character));
+            });
+        });
+        
+        // Confirm buttons
+        const confirmDifficultyBtn = document.getElementById('confirmDifficultyBtn');
+        if (confirmDifficultyBtn) {
+            confirmDifficultyBtn.addEventListener('click', (e) => {
+                console.log('✅ Difficulty confirm button clicked');
+                this.addButtonClickEffect(e.target);
+                this.confirmDifficultySelection();
+            });
+        }
+        
+        const confirmCharacterBtn = document.getElementById('confirmCharacterBtn');
+        if (confirmCharacterBtn) {
+            confirmCharacterBtn.addEventListener('click', (e) => {
+                console.log('✅ Character confirm button clicked');
+                this.addButtonClickEffect(e.target);
+                this.confirmCharacterSelection();
+            });
+        }
+        
+        const confirmGameBtn = document.getElementById('confirmGameBtn');
+        if (confirmGameBtn) {
+            confirmGameBtn.addEventListener('click', (e) => {
+                console.log('✅ Game confirm button clicked');
+                this.addButtonClickEffect(e.target);
+                this.confirmGameSelection();
+            });
+        }
+        
+        // Result screen buttons
+        const playAgainBtn = document.getElementById('playAgainBtn');
+        const changeGameBtn = document.getElementById('changeGameBtn');
+        const copyMemeBtn = document.getElementById('copyMemeBtn');
+        
+        if (playAgainBtn) {
+            playAgainBtn.addEventListener('click', (e) => {
+                this.addButtonClickEffect(e.target);
+                this.playAgain();
+            });
+        }
+        
+        if (changeGameBtn) {
+            changeGameBtn.addEventListener('click', (e) => {
+                this.addButtonClickEffect(e.target);
+                this.changeGame();
+            });
+        }
+        
+        if (copyMemeBtn) {
+            copyMemeBtn.addEventListener('click', (e) => {
+                this.addButtonClickEffect(e.target);
+                const memeText = document.getElementById('memeText').textContent;
+                navigator.clipboard.writeText(memeText).then(() => {
+                    this.showGameMessage('Copied to clipboard! 📋', 1000);
+                });
+            });
+        }
+        
+        // Room code input enhancement
+        const roomInput = document.getElementById('roomCodeInput');
+        if (roomInput) {
+            roomInput.addEventListener('input', (e) => {
+                e.target.value = e.target.value.toUpperCase();
+            });
+        }
+        
+        console.log('✅ Event listeners setup complete');
+        
+        // Test if confirm buttons exist (check only, don't redeclare)
+        console.log('🔍 Confirm buttons check:', {
+            confirmDifficultyBtn: !!document.getElementById('confirmDifficultyBtn'),
+            confirmCharacterBtn: !!document.getElementById('confirmCharacterBtn'),
+            confirmGameBtn: !!document.getElementById('confirmGameBtn')
+        });
+    }
+    
+    // SOCKET EVENTS
+    setupSocketEvents() {
+        this.socket.on('roomCreated', (data) => {
+            console.log('Room created event received:', data);
+            this.playerNumber = data.playerNumber;
+            this.roomCode = data.roomCode;
+            document.getElementById('roomCode').textContent = data.roomCode;
+            
+            document.getElementById('roomInfo').classList.remove('hidden');
+            document.querySelector('.main-menu').classList.add('hidden');
+            document.getElementById('joinRoomInput').classList.add('hidden');
+        });
+        
+        this.socket.on('bothPlayersReady', () => {
+            console.log('Both players ready, showing game selection');
+            this.showScreen('gameSelect');
+        });
+        
+        this.socket.on('error', (message) => {
+            alert(message);
+        });
+    }
+    
+    // CONNECTION DEBUG
     setupConnectionDebug() {
         this.socket.on('connect', () => {
             console.log('Connected to server:', this.socket.id);
@@ -271,181 +472,39 @@ class MemeFighters {
         });
     }
     
-    // INPUT SYSTEM - Key state tracking for smooth movement
-    setupInputSystem() {
-        window.addEventListener('keydown', (e) => {
-            this.keys[e.code] = true;
-            
-            // Handle instant actions
-            if (e.code === 'Space') {
-                e.preventDefault();
-                this.handleAttack();
-            }
-            if (e.code === 'KeyE') {
-                this.handleAbility();
-            }
-            if (e.code === 'KeyQ') {
-                this.handleUltimate();
-            }
-        });
-        
-        window.addEventListener('keyup', (e) => {
-            this.keys[e.code] = false;
-        });
+    // GAME SELECTION
+    showGameSelection() {
+        this.showScreen('gameSelect');
     }
     
-    // EVENT LISTENERS
-    setupEventListeners() {
-        document.getElementById('createRoomBtn').addEventListener('click', () => {
-            this.gameMode = 'create';
-            this.showCharacterSelection();
+    selectGame(gameType) {
+        console.log('🎮 Game selected:', gameType);
+        
+        document.querySelectorAll('.game-card').forEach(card => {
+            card.classList.remove('selected');
         });
         
-        document.getElementById('joinRoomBtn').addEventListener('click', () => {
-            document.getElementById('joinRoomInput').classList.remove('hidden');
-            document.querySelector('.menu-buttons').classList.add('hidden');
-        });
+        const selectedCard = document.querySelector(`[data-game="${gameType}"]`);
+        if (selectedCard) {
+            selectedCard.classList.add('selected');
+        }
         
-        document.getElementById('playSoloBtn').addEventListener('click', () => {
-            this.gameMode = 'solo';
-            this.showDifficultySelection();
-        });
+        this.selectedGame = gameType;
         
-        document.getElementById('joinBtn').addEventListener('click', () => {
-            const roomCode = document.getElementById('roomCodeInput').value;
-            if (roomCode.length === 4) {
-                this.gameMode = 'join';
-                this.roomCodeToJoin = roomCode;
+        if (this.gameMode === 'solo') {
+            if (gameType === 'memeFighters') {
+                this.showDifficultySelection();
+            } else {
+                alert(`${gameType} solo mode coming soon!`);
+            }
+        } else {
+            // Multiplayer mode
+            if (gameType === 'memeFighters') {
                 this.showCharacterSelection();
+            } else {
+                alert(`${gameType} multiplayer coming soon!`);
             }
-        });
-        
-        document.getElementById('cancelBtn').addEventListener('click', () => {
-            document.getElementById('joinRoomInput').classList.add('hidden');
-            document.querySelector('.menu-buttons').classList.remove('hidden');
-            document.getElementById('roomCodeInput').value = '';
-        });
-        
-        // Character selection
-        document.querySelectorAll('.character-card').forEach(card => {
-            card.addEventListener('click', () => {
-                this.selectCharacter(parseInt(card.dataset.character));
-            });
-        });
-        
-        document.getElementById('confirmCharacterBtn').addEventListener('click', () => {
-            this.confirmCharacterSelection();
-        });
-        
-        // Difficulty selection
-        document.querySelectorAll('.difficulty-card').forEach(card => {
-            card.addEventListener('click', () => {
-                this.selectDifficulty(card.dataset.difficulty);
-            });
-        });
-        
-        document.getElementById('confirmDifficultyBtn').addEventListener('click', () => {
-            this.confirmDifficultySelection();
-        });
-        
-        // Game over actions
-        document.getElementById('copyMemeBtn').addEventListener('click', () => {
-            const memeText = document.getElementById('memeText').textContent;
-            navigator.clipboard.writeText(memeText).then(() => {
-                this.showMessage('Copied to clipboard! 📋', 1000);
-            });
-        });
-        
-        document.getElementById('playAgainBtn').addEventListener('click', () => {
-            location.reload();
-        });
-    }
-    
-    // SOCKET EVENTS
-    setupSocketEvents() {
-        this.socket.on('roomCreated', (data) => {
-            console.log('Room created event received:', data);
-            this.playerNumber = data.playerNumber;
-            document.getElementById('roomCode').textContent = data.roomCode;
-            
-            this.showScreen('menu');
-            document.getElementById('roomInfo').classList.remove('hidden');
-            document.querySelector('.menu-buttons').classList.add('hidden');
-            document.getElementById('joinRoomInput').classList.add('hidden');
-        });
-        
-        this.socket.on('startGame', (data) => {
-            this.gameState = this.initializeGameState(data);
-            this.playerNumber = this.socket.id === data.player1.id ? 1 : 2;
-            this.startGame();
-        });
-        
-        this.socket.on('stateUpdate', (serverState) => {
-            this.handleServerUpdate(serverState);
-        });
-        
-        this.socket.on('attack', (data) => {
-            this.handleAttackFeedback(data);
-        });
-        
-        this.socket.on('abilityUsed', (data) => {
-            this.handleAbilityFeedback(data);
-        });
-        
-        this.socket.on('projectileHitConfirmed', (data) => {
-            // Server confirmed projectile hit - update UI
-            this.updateUI();
-        });
-        
-        this.socket.on('ultimateUsed', (data) => {
-            this.showMessage('⚡ ULTIMATE ATTACK! ⚡', 1500);
-            this.addScreenShake(10);
-            this.playSound('ultimate');
-        });
-        
-        this.socket.on('gameOver', (data) => {
-            this.handleGameOver(data);
-        });
-        
-        this.socket.on('playerDisconnected', () => {
-            this.showMessage('Opponent disconnected!', 3000);
-        });
-        
-        this.socket.on('error', (message) => {
-            alert(message);
-        });
-    }
-    
-    // Initialize game state with proper structure
-    initializeGameState(data) {
-        const state = {
-            player1: this.createPlayerObject(data.player1),
-            player2: this.createPlayerObject(data.player2)
-        };
-        return state;
-    }
-    
-    createPlayerObject(playerData) {
-        return {
-            ...playerData,
-            // Physics
-            vx: 0,
-            vy: 0,
-            // Rendering
-            renderX: playerData.x,
-            renderY: playerData.y,
-            scale: 1,
-            // Animation
-            state: 'idle',
-            stateTime: 0,
-            // Combat
-            hitbox: {
-                x: playerData.x - GAME_CONFIG.HITBOX_SIZE/2,
-                y: playerData.y - GAME_CONFIG.HITBOX_SIZE/2,
-                width: GAME_CONFIG.HITBOX_SIZE,
-                height: GAME_CONFIG.HITBOX_SIZE
-            }
-        };
+        }
     }
     
     // DIFFICULTY SELECTION
@@ -454,56 +513,130 @@ class MemeFighters {
     }
     
     selectDifficulty(difficulty) {
+        console.log('🎯 Difficulty selected:', difficulty);
+        
         document.querySelectorAll('.difficulty-card').forEach(card => {
             card.classList.remove('selected');
         });
         
         const selectedCard = document.querySelector(`[data-difficulty="${difficulty}"]`);
-        selectedCard.classList.add('selected');
+        if (selectedCard) {
+            selectedCard.classList.add('selected');
+            console.log('✅ Difficulty card selected and highlighted');
+        } else {
+            console.error('❌ Difficulty card not found:', difficulty);
+        }
         
         this.selectedDifficulty = difficulty;
-        document.getElementById('confirmDifficultyBtn').classList.remove('hidden');
+        
+        const confirmBtn = document.getElementById('confirmDifficultyBtn');
+        if (confirmBtn) {
+            confirmBtn.classList.remove('hidden');
+            console.log('✅ Difficulty confirm button shown');
+        } else {
+            console.error('❌ Difficulty confirm button not found');
+        }
     }
     
     confirmDifficultySelection() {
         if (!this.selectedDifficulty) return;
         
-        console.log('Difficulty selected:', this.selectedDifficulty);
+        console.log('Difficulty confirmed:', this.selectedDifficulty);
         this.showCharacterSelection();
+    }
+    
+    confirmGameSelection() {
+        if (!this.selectedGame) return;
+        
+        console.log('Game selection confirmed:', this.selectedGame);
+        
+        if (this.gameMode === 'solo') {
+            this.startSelectedGame();
+        } else {
+            this.socket.emit('confirmGame', { game: this.selectedGame });
+        }
+    }
+    
+    startSelectedGame() {
+        console.log('🎮 Starting selected game:', this.selectedGame);
+        
+        switch (this.selectedGame) {
+            case 'memeFighters':
+                if (this.gameMode === 'solo') {
+                    this.showCharacterSelection();
+                } else {
+                    this.showCharacterSelection();
+                }
+                break;
+            case 'ticTacToe':
+                this.showScreen('ticTacToe');
+                break;
+            case 'reactionClick':
+                this.showScreen('reactionClick');
+                break;
+        }
+    }
+    
+    playAgain() {
+        if (this.gameMode === 'solo') {
+            location.reload();
+        } else {
+            this.socket.emit('playAgain');
+        }
+    }
+    
+    changeGame() {
+        if (this.gameMode === 'solo') {
+            this.showGameSelection();
+        } else {
+            this.socket.emit('changeGame');
+            this.showGameSelection();
+        }
     }
     
     // CHARACTER SELECTION
     showCharacterSelection() {
         this.showScreen('characterSelect');
-        // Play CID sound when character selection screen appears
         setTimeout(() => {
             playMemeSound('characterSelect');
-        }, 500); // Small delay to ensure screen transition
-    }
-    showCharacterSelection() {
-        this.showScreen('characterSelect');
-        // Play CID sound when character selection screen appears
-        setTimeout(() => {
-            playMemeSound('characterSelect');
-        }, 500); // Small delay to ensure screen transition
+        }, 500);
     }
     
     selectCharacter(characterId) {
+        console.log('👤 Character selected:', characterId);
+        
         document.querySelectorAll('.character-card').forEach(card => {
             card.classList.remove('selected');
         });
         
         const selectedCard = document.querySelector(`[data-character="${characterId}"]`);
-        selectedCard.classList.add('selected');
+        if (selectedCard) {
+            selectedCard.classList.add('selected');
+            console.log('✅ Character card selected and highlighted');
+        } else {
+            console.error('❌ Character card not found:', characterId);
+        }
         
         this.selectedCharacter = CHARACTERS.find(c => c.id === characterId);
-        document.getElementById('confirmCharacterBtn').classList.remove('hidden');
+        if (this.selectedCharacter) {
+            console.log('✅ Character data found:', this.selectedCharacter.name);
+        } else {
+            console.error('❌ Character data not found for ID:', characterId);
+        }
+        
+        const confirmBtn = document.getElementById('confirmCharacterBtn');
+        if (confirmBtn) {
+            confirmBtn.classList.remove('hidden');
+            console.log('✅ Character confirm button shown');
+        } else {
+            console.error('❌ Character confirm button not found');
+        }
     }
     
     confirmCharacterSelection() {
         if (!this.selectedCharacter) return;
         
-        console.log('Confirming character selection:', this.selectedCharacter.name, 'for mode:', this.gameMode);
+        console.log('Character confirmed:', this.selectedCharacter.name, 'for mode:', this.gameMode);
         
         switch (this.gameMode) {
             case 'create':
@@ -521,29 +654,152 @@ class MemeFighters {
         }
     }
     
-    // GAME INITIALIZATION
+    // SOLO MODE IMPLEMENTATION - FULL GAME
+    startSoloMode() {
+        console.log('🤖 Starting solo mode...');
+        console.log(`Character: ${this.selectedCharacter.name}`);
+        console.log(`Difficulty: ${this.selectedDifficulty}`);
+        
+        // Initialize full game state
+        this.isSoloMode = true;
+        this.playerNumber = 1;
+        
+        // Create bot character
+        const botCharacter = CHARACTERS[Math.floor(Math.random() * CHARACTERS.length)];
+        
+        // Initialize game state with full physics and rendering
+        this.gameState = {
+            player1: this.createPlayerObject({ 
+                id: 'human', 
+                x: 150, 
+                y: 200, 
+                health: 100, 
+                canMove: true, 
+                hasUlt: true,
+                characterId: this.selectedCharacter.id,
+                ability: this.selectedCharacter.ability
+            }),
+            player2: this.createPlayerObject({ 
+                id: 'bot', 
+                x: 650, 
+                y: 200, 
+                health: 100, 
+                canMove: true, 
+                hasUlt: true,
+                characterId: botCharacter.id,
+                ability: botCharacter.ability
+            })
+        };
+        
+        // Initialize game systems
+        this.keys = {};
+        this.projectiles = [];
+        this.particles = [];
+        this.animations = [];
+        this.screenShake = { x: 0, y: 0, intensity: 0 };
+        this.lastTime = 0;
+        this.deltaTime = 0;
+        this.lastNetworkUpdate = 0;
+        
+        // Initialize bot AI
+        this.initBotAI();
+        
+        // Start the game
+        this.startGame();
+    }
+    
+    createPlayerObject(playerData) {
+        return {
+            ...playerData,
+            // Physics
+            vx: 0,
+            vy: 0,
+            // Rendering
+            renderX: playerData.x,
+            renderY: playerData.y,
+            scale: 1,
+            // Animation
+            state: 'idle',
+            stateTime: 0,
+            // Combat
+            hitbox: {
+                x: playerData.x - 40,
+                y: playerData.y - 40,
+                width: 80,
+                height: 80
+            },
+            // Status effects
+            sizeBoosted: false,
+            reversed: false
+        };
+    }
+    
+    initBotAI() {
+        const difficultySettings = {
+            easy: {
+                speedMultiplier: 0.4,
+                reactionDelay: 800,
+                attackChance: 0.08,
+                abilityChance: 0.02,
+                attackCooldown: [2500, 4000],
+                abilityCooldown: [8000, 12000],
+                ultimateChance: 0.1,
+                defensiveBehavior: 0.4
+            },
+            medium: {
+                speedMultiplier: 0.6,
+                reactionDelay: 300,
+                attackChance: 0.15,
+                abilityChance: 0.03,
+                attackCooldown: [1500, 3000],
+                abilityCooldown: [5000, 8000],
+                ultimateChance: 0.2,
+                defensiveBehavior: 0.3
+            },
+            hard: {
+                speedMultiplier: 0.8,
+                reactionDelay: 150,
+                attackChance: 0.25,
+                abilityChance: 0.05,
+                attackCooldown: [800, 1500],
+                abilityCooldown: [3000, 5000],
+                ultimateChance: 0.35,
+                defensiveBehavior: 0.1
+            }
+        };
+        
+        const settings = difficultySettings[this.selectedDifficulty] || difficultySettings.medium;
+        
+        this.botAI = {
+            lastAction: 0,
+            lastAbility: 0,
+            reactionDelay: settings.reactionDelay,
+            nextActionTime: 0,
+            nextAbilityTime: Date.now() + settings.abilityCooldown[0],
+            difficulty: this.selectedDifficulty,
+            settings: settings
+        };
+        
+        console.log(`Bot AI initialized with ${this.selectedDifficulty} difficulty:`, settings);
+    }
+    
     startGame() {
         this.showScreen('game');
-        this.canvas = document.getElementById('gameCanvas');
-        this.ctx = this.canvas.getContext('2d');
+        this.setupCanvas();
+        this.setupInputSystem();
         
         // Update UI labels
-        if (this.isSoloMode) {
-            const difficultyEmojis = {
-                easy: '😴',
-                medium: '😐', 
-                hard: '😈'
-            };
-            const difficultyLabel = this.selectedDifficulty ? 
-                `${difficultyEmojis[this.selectedDifficulty]} ${this.selectedDifficulty.toUpperCase()} BOT` : 
-                'AI Opponent 🤖';
-            
-            document.getElementById('p1Label').textContent = 'You';
-            document.getElementById('p2Label').textContent = difficultyLabel;
-        } else {
-            document.getElementById('p1Label').textContent = 'Player 1';
-            document.getElementById('p2Label').textContent = 'Player 2';
-        }
+        const difficultyEmojis = {
+            easy: '😴',
+            medium: '😐', 
+            hard: '😈'
+        };
+        const difficultyLabel = this.selectedDifficulty ? 
+            `${difficultyEmojis[this.selectedDifficulty]} ${this.selectedDifficulty.toUpperCase()} BOT` : 
+            'AI Opponent 🤖';
+        
+        document.getElementById('p1Label').textContent = 'You';
+        document.getElementById('p2Label').textContent = difficultyLabel;
         
         // Update abilities display
         const p1Character = CHARACTERS.find(c => c.id === this.gameState.player1.characterId);
@@ -552,11 +808,68 @@ class MemeFighters {
         document.getElementById('p1Ability').textContent = p1Character ? p1Character.ability : 'unknown';
         document.getElementById('p2Ability').textContent = p2Character ? p2Character.ability : 'unknown';
         
+        // Initialize health bars
+        this.updateHealthBars();
+        
         // Start the main game loop
         this.startGameLoop();
     }
     
-    // MAIN GAME LOOP - 60 FPS with proper timing
+    setupCanvas() {
+        const canvas = document.getElementById('gameCanvas');
+        if (!canvas) {
+            console.error('Game canvas not found');
+            return;
+        }
+        
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        
+        // Set canvas size to full screen
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        // Handle resize
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+        
+        console.log('Canvas setup complete:', canvas.width, 'x', canvas.height);
+    }
+    
+    setupInputSystem() {
+        // Clear any existing listeners
+        document.removeEventListener('keydown', this.handleKeyDown);
+        document.removeEventListener('keyup', this.handleKeyUp);
+        
+        // Bind methods to preserve 'this' context
+        this.handleKeyDown = (e) => {
+            this.keys[e.code] = true;
+            
+            // Handle instant actions
+            if (e.code === 'Space') {
+                e.preventDefault();
+                this.handleAttack();
+            }
+            if (e.code === 'KeyE') {
+                this.handleAbility();
+            }
+            if (e.code === 'KeyQ') {
+                this.handleUltimate();
+            }
+        };
+        
+        this.handleKeyUp = (e) => {
+            this.keys[e.code] = false;
+        };
+        
+        document.addEventListener('keydown', this.handleKeyDown);
+        document.addEventListener('keyup', this.handleKeyUp);
+        
+        console.log('Input system setup complete');
+    }
+    
     startGameLoop() {
         const gameLoop = (currentTime) => {
             this.deltaTime = currentTime - this.lastTime;
@@ -569,13 +882,16 @@ class MemeFighters {
             this.render();
             
             // Continue loop
-            requestAnimationFrame(gameLoop);
+            if (this.gameState) {
+                requestAnimationFrame(gameLoop);
+            }
         };
         
+        this.lastTime = performance.now();
         requestAnimationFrame(gameLoop);
+        console.log('Game loop started');
     }
     
-    // UPDATE LOGIC - Separated from rendering
     update(deltaTime) {
         if (!this.gameState) return;
         
@@ -597,38 +913,36 @@ class MemeFighters {
         // Update screen shake
         this.updateScreenShake(deltaTime);
         
-        // Network updates (throttled)
-        this.handleNetworkUpdates();
-        
         // Solo mode AI
         if (this.isSoloMode) {
             this.updateBotAI(deltaTime);
         }
     }
     
-    // INPUT HANDLING - Smooth movement with velocity
     handleInput() {
         if (!this.gameState) return;
         
-        const player = this.gameState[`player${this.playerNumber}`];
+        const player = this.gameState.player1;
         if (!player || !player.canMove) return;
         
         // Reset velocity
         player.vx = 0;
         player.vy = 0;
         
+        const speed = 5;
+        
         // Apply movement based on keys
         if (this.keys['ArrowLeft'] || this.keys['KeyA']) {
-            player.vx = -GAME_CONFIG.PLAYER_SPEED;
+            player.vx = -speed;
         }
         if (this.keys['ArrowRight'] || this.keys['KeyD']) {
-            player.vx = GAME_CONFIG.PLAYER_SPEED;
+            player.vx = speed;
         }
         if (this.keys['ArrowUp'] || this.keys['KeyW']) {
-            player.vy = -GAME_CONFIG.PLAYER_SPEED;
+            player.vy = -speed;
         }
         if (this.keys['ArrowDown'] || this.keys['KeyS']) {
-            player.vy = GAME_CONFIG.PLAYER_SPEED;
+            player.vy = speed;
         }
         
         // Apply reverse effect
@@ -637,7 +951,7 @@ class MemeFighters {
             player.vy = -player.vy;
         }
         
-        // Update animation state with better timing
+        // Update animation state
         if (player.vx !== 0 || player.vy !== 0) {
             this.setPlayerState(player, 'run');
         } else if (player.state === 'run') {
@@ -645,7 +959,6 @@ class MemeFighters {
         }
     }
     
-    // PLAYER UPDATES - Physics and interpolation
     updatePlayers(deltaTime) {
         if (!this.gameState) return;
         
@@ -672,10 +985,9 @@ class MemeFighters {
         player.y += player.vy;
         
         // Boundary checks
-        player.x = Math.max(GAME_CONFIG.HITBOX_SIZE/2, 
-                           Math.min(GAME_CONFIG.CANVAS_WIDTH - GAME_CONFIG.HITBOX_SIZE/2, player.x));
-        player.y = Math.max(GAME_CONFIG.HITBOX_SIZE/2, 
-                           Math.min(GAME_CONFIG.CANVAS_HEIGHT - GAME_CONFIG.HITBOX_SIZE/2, player.y));
+        const margin = 40;
+        player.x = Math.max(margin, Math.min(this.canvas.width - margin, player.x));
+        player.y = Math.max(margin, Math.min(this.canvas.height - margin, player.y));
     }
     
     updatePlayerInterpolation(player, deltaTime) {
@@ -684,20 +996,18 @@ class MemeFighters {
         player.renderX += (player.x - player.renderX) * lerpFactor;
         player.renderY += (player.y - player.renderY) * lerpFactor;
         
-        // Enhanced animation scale interpolation with proper timing
+        // Enhanced animation scale interpolation
         let targetScale = 1;
         
-        if (player.state === 'attack' && player.stateTime < GAME_CONFIG.ANIMATION_DURATION_ATTACK) {
-            targetScale = GAME_CONFIG.ANIMATION_SCALE_ATTACK;
-        } else if (player.state === 'ability' && player.stateTime < GAME_CONFIG.ANIMATION_DURATION_ABILITY) {
+        if (player.state === 'attack' && player.stateTime < 400) {
+            targetScale = 1.4;
+        } else if (player.state === 'ability' && player.stateTime < 600) {
             const character = CHARACTERS.find(c => c.id === player.characterId);
-            targetScale = character?.ability === 'size_boost' ? 2.2 : GAME_CONFIG.ANIMATION_SCALE_ABILITY;
-        } else if (player.state === 'hit' && player.stateTime < GAME_CONFIG.ANIMATION_DURATION_HIT) {
-            // Hit animation with pulsing effect
-            const hitProgress = player.stateTime / GAME_CONFIG.ANIMATION_DURATION_HIT;
+            targetScale = character?.ability === 'size_boost' ? 2.2 : 1.6;
+        } else if (player.state === 'hit' && player.stateTime < 300) {
+            const hitProgress = player.stateTime / 300;
             targetScale = 1 + Math.sin(hitProgress * Math.PI * 4) * 0.2;
         } else if (player.state === 'run') {
-            // Subtle running animation
             targetScale = 1 + Math.sin(player.stateTime * 0.01) * 0.05;
         }
         
@@ -708,19 +1018,22 @@ class MemeFighters {
         
         player.scale += (targetScale - player.scale) * 0.3;
         
-        // Auto-reset animation states after duration
-        if (player.state === 'attack' && player.stateTime > GAME_CONFIG.ANIMATION_DURATION_ATTACK) {
+        // Auto-reset animation states
+        if (player.state === 'attack' && player.stateTime > 400) {
             this.setPlayerState(player, 'idle');
-        } else if (player.state === 'ability' && player.stateTime > GAME_CONFIG.ANIMATION_DURATION_ABILITY) {
+        } else if (player.state === 'ability' && player.stateTime > 600) {
             this.setPlayerState(player, 'idle');
-        } else if (player.state === 'hit' && player.stateTime > GAME_CONFIG.ANIMATION_DURATION_HIT) {
+        } else if (player.state === 'hit' && player.stateTime > 300) {
             this.setPlayerState(player, 'idle');
         }
     }
     
     updatePlayerHitbox(player) {
-        player.hitbox.x = player.x - GAME_CONFIG.HITBOX_SIZE/2;
-        player.hitbox.y = player.y - GAME_CONFIG.HITBOX_SIZE/2;
+        const size = 80 * player.scale;
+        player.hitbox.x = player.x - size/2;
+        player.hitbox.y = player.y - size/2;
+        player.hitbox.width = size;
+        player.hitbox.height = size;
     }
     
     setPlayerState(player, newState) {
@@ -730,422 +1043,88 @@ class MemeFighters {
         }
     }
     
-    // PROJECTILE SYSTEM
-    updateProjectiles(deltaTime) {
-        for (let i = this.projectiles.length - 1; i >= 0; i--) {
-            const proj = this.projectiles[i];
-            
-            // Move projectile
-            proj.x += proj.vx;
-            proj.y += proj.vy;
-            
-            // Reduce life
-            proj.life -= deltaTime;
-            
-            // Check collision with players
-            if (this.checkProjectileCollisions(proj)) {
-                this.projectiles.splice(i, 1);
-                continue;
-            }
-            
-            // Remove if expired or out of bounds
-            if (proj.life <= 0 || this.isOutOfBounds(proj)) {
-                this.projectiles.splice(i, 1);
-            }
-        }
-    }
-    
-    checkProjectileCollisions(projectile) {
-        if (!this.gameState) return false;
-        
-        // Check collision with opponent
-        const opponent = projectile.owner === 1 ? this.gameState.player2 : this.gameState.player1;
-        if (!opponent) return false;
-        
-        if (this.isColliding(projectile, opponent.hitbox)) {
-            this.handleProjectileHit(projectile, opponent);
-            return true;
-        }
-        
-        return false;
-    }
-    
-    handleProjectileHit(projectile, target) {
-        // In multiplayer mode, send hit to server for validation
-        if (!this.isSoloMode) {
-            const targetPlayerNumber = target === this.gameState.player1 ? 1 : 2;
-            this.socket.emit('projectileHit', {
-                targetPlayer: targetPlayerNumber,
-                damage: projectile.damage,
-                position: { x: target.x, y: target.y }
-            });
-            
-            // Visual feedback only (server will update health)
-            this.setPlayerState(target, 'hit');
-            this.addHitEffect(target.x, target.y);
-            this.addScreenShake(8);
-            playMemeSound('hit');
-            this.addDamageNumber(target.x, target.y, projectile.damage);
-            return;
-        }
-        
-        // Solo mode - handle damage locally
-        target.health = Math.max(0, target.health - projectile.damage);
-        
-        // Visual feedback with enhanced animations
-        this.setPlayerState(target, 'hit');
-        this.addHitEffect(target.x, target.y);
-        this.addScreenShake(8); // Increased screen shake
-        
-        // Play meme sound for hit
-        playMemeSound('hit');
-        
-        // Damage number
-        this.addDamageNumber(target.x, target.y, projectile.damage);
-        
-        // Check game over
-        if (target.health <= 0 && this.isSoloMode) {
-            const playerWon = target.id === 'bot';
-            this.endSoloGame(playerWon);
-        }
-        
-        this.updateUI();
-    }
-    
-    isColliding(a, b) {
-        return a.x < b.x + b.width &&
-               a.x + a.width > b.x &&
-               a.y < b.y + b.height &&
-               a.y + a.height > b.y;
-    }
-    
-    isOutOfBounds(obj) {
-        return obj.x < -50 || obj.x > GAME_CONFIG.CANVAS_WIDTH + 50 ||
-               obj.y < -50 || obj.y > GAME_CONFIG.CANVAS_HEIGHT + 50;
-    }
-    
-    // PARTICLE SYSTEM
-    updateParticles(deltaTime) {
-        for (let i = this.particles.length - 1; i >= 0; i--) {
-            const particle = this.particles[i];
-            
-            // Update position
-            particle.x += particle.vx;
-            particle.y += particle.vy;
-            
-            // Apply gravity/effects
-            if (particle.gravity) {
-                particle.vy += particle.gravity;
-            }
-            
-            // Reduce life
-            particle.life -= deltaTime;
-            
-            // Remove if expired
-            if (particle.life <= 0) {
-                this.particles.splice(i, 1);
-            }
-        }
-    }
-    
-    // ANIMATION SYSTEM
-    updateAnimations(deltaTime) {
-        for (let i = this.animations.length - 1; i >= 0; i--) {
-            const anim = this.animations[i];
-            
-            anim.time += deltaTime;
-            
-            if (anim.time >= anim.duration) {
-                this.animations.splice(i, 1);
-            }
-        }
-    }
-    
-    // SCREEN SHAKE
-    updateScreenShake(deltaTime) {
-        if (this.screenShake.intensity > 0) {
-            this.screenShake.intensity -= deltaTime * 0.01;
-            this.screenShake.x = (Math.random() - 0.5) * this.screenShake.intensity;
-            this.screenShake.y = (Math.random() - 0.5) * this.screenShake.intensity;
-        } else {
-            this.screenShake.x = 0;
-            this.screenShake.y = 0;
-        }
-    }
-    
-    addScreenShake(intensity) {
-        this.screenShake.intensity = Math.max(this.screenShake.intensity, intensity);
-    }
-    
-    // NETWORK UPDATES - Throttled to reduce bandwidth
-    handleNetworkUpdates() {
-        const now = Date.now();
-        if (now - this.lastNetworkUpdate < GAME_CONFIG.NETWORK_UPDATE_RATE) return;
-        
-        if (!this.isSoloMode && this.gameState) {
-            const player = this.gameState[`player${this.playerNumber}`];
-            if (player) {
-                this.socket.emit('playerMove', { 
-                    x: player.x, 
-                    y: player.y,
-                    state: player.state
-                });
-            }
-        }
-        
-        this.lastNetworkUpdate = now;
-    }
-    
-    handleServerUpdate(serverState) {
+    updateHealthBars() {
         if (!this.gameState) return;
         
-        // Update opponent position (with interpolation)
-        const opponentNumber = this.playerNumber === 1 ? 2 : 1;
-        const serverOpponent = serverState[`player${opponentNumber}`];
-        const localOpponent = this.gameState[`player${opponentNumber}`];
+        const p1Health = this.gameState.player1?.health || 0;
+        const p2Health = this.gameState.player2?.health || 0;
         
-        if (serverOpponent && localOpponent) {
-            // Set target position for interpolation
-            localOpponent.x = serverOpponent.x;
-            localOpponent.y = serverOpponent.y;
-            localOpponent.health = serverOpponent.health;
-            localOpponent.state = serverOpponent.state || 'idle';
+        const p1Bar = document.getElementById('p1HealthBar');
+        const p2Bar = document.getElementById('p2HealthBar');
+        const p1Text = document.getElementById('p1Health');
+        const p2Text = document.getElementById('p2Health');
+        
+        if (p1Bar) {
+            p1Bar.style.width = `${p1Health}%`;
+            if (p1Health > 60) {
+                p1Bar.style.background = 'linear-gradient(90deg, #98FB98, #FFE066)';
+            } else if (p1Health > 30) {
+                p1Bar.style.background = 'linear-gradient(90deg, #FFE066, #FF6B9D)';
+            } else {
+                p1Bar.style.background = '#FF6B9D';
+            }
         }
         
-        this.updateUI();
+        if (p2Bar) {
+            p2Bar.style.width = `${p2Health}%`;
+            if (p2Health > 60) {
+                p2Bar.style.background = 'linear-gradient(90deg, #98FB98, #FFE066)';
+            } else if (p2Health > 30) {
+                p2Bar.style.background = 'linear-gradient(90deg, #FFE066, #FF6B9D)';
+            } else {
+                p2Bar.style.background = '#FF6B9D';
+            }
+        }
+        
+        if (p1Text) p1Text.textContent = p1Health;
+        if (p2Text) p2Text.textContent = p2Health;
     }
     
-    // COMBAT ACTIONS
+    // GAME MESSAGE SYSTEM
+    showGameMessage(text, duration = 1000) {
+        console.log('💬 Game message:', text);
+        // Implementation for showing in-game messages
+    }
+    
+    // COMBAT SYSTEM
     handleAttack() {
         if (!this.gameState) return;
         
-        const player = this.gameState[`player${this.playerNumber}`];
+        const player = this.gameState.player1;
         if (!player) return;
         
-        // Set attack state with enhanced feedback
         this.setPlayerState(player, 'attack');
-        
-        // Create attack effect
         this.addAttackEffect(player);
         
         if (this.isSoloMode) {
             this.handleSoloAttack();
-        } else {
-            this.socket.emit('playerAttack');
         }
     }
     
     handleAbility() {
         if (!this.gameState) return;
         
-        const player = this.gameState[`player${this.playerNumber}`];
+        const player = this.gameState.player1;
         if (!player) return;
         
         this.setPlayerState(player, 'ability');
         
         if (this.isSoloMode) {
             this.handleSoloAbility();
-        } else {
-            this.socket.emit('useAbility');
         }
     }
     
     handleUltimate() {
         if (!this.gameState) return;
         
-        const player = this.gameState[`player${this.playerNumber}`];
+        const player = this.gameState.player1;
         if (!player || !player.hasUlt) return;
         
         if (this.isSoloMode) {
             this.handleSoloUltimate();
-        } else {
-            this.socket.emit('useUltimate');
         }
     }
     
-    // SOLO MODE IMPLEMENTATION
-    startSoloMode() {
-        this.isSoloMode = true;
-        this.playerNumber = 1;
-        
-        const botCharacter = CHARACTERS[Math.floor(Math.random() * CHARACTERS.length)];
-        
-        this.gameState = {
-            player1: this.createPlayerObject({ 
-                id: 'human', 
-                x: 100, 
-                y: 200, 
-                health: 100, 
-                canMove: true, 
-                hasUlt: true,
-                characterId: this.selectedCharacter.id,
-                ability: this.selectedCharacter.ability
-            }),
-            player2: this.createPlayerObject({ 
-                id: 'bot', 
-                x: 600, 
-                y: 200, 
-                health: 100, 
-                canMove: true, 
-                hasUlt: true,
-                characterId: botCharacter.id,
-                ability: botCharacter.ability
-            })
-        };
-        
-        this.startGame();
-        this.initBotAI();
-    }
-    
-    initBotAI() {
-        // Difficulty-based AI configuration
-        const difficultySettings = {
-            easy: {
-                speedMultiplier: 0.4,        // Very slow movement
-                reactionDelay: 800,          // Slow reactions
-                attackChance: 0.08,          // Rarely attacks (8%)
-                abilityChance: 0.02,         // Very rare abilities (2%)
-                attackCooldown: [2500, 4000], // Long cooldowns
-                abilityCooldown: [8000, 12000],
-                ultimateChance: 0.1,         // Rarely uses ultimate
-                defensiveBehavior: 0.4       // Often backs away
-            },
-            medium: {
-                speedMultiplier: 0.6,        // Balanced speed
-                reactionDelay: 300,          // Normal reactions
-                attackChance: 0.15,          // Moderate attacks (15%)
-                abilityChance: 0.03,         // Occasional abilities (3%)
-                attackCooldown: [1500, 3000], // Balanced cooldowns
-                abilityCooldown: [5000, 8000],
-                ultimateChance: 0.2,         // Sometimes uses ultimate
-                defensiveBehavior: 0.3       // Sometimes defensive
-            },
-            hard: {
-                speedMultiplier: 0.8,        // Fast movement
-                reactionDelay: 150,          // Quick reactions
-                attackChance: 0.25,          // Aggressive attacks (25%)
-                abilityChance: 0.05,         // Frequent abilities (5%)
-                attackCooldown: [800, 1500], // Short cooldowns
-                abilityCooldown: [3000, 5000],
-                ultimateChance: 0.35,        // Often uses ultimate
-                defensiveBehavior: 0.1       // Rarely defensive
-            }
-        };
-        
-        const settings = difficultySettings[this.selectedDifficulty] || difficultySettings.medium;
-        
-        this.botAI = {
-            lastAction: 0,
-            lastAbility: 0,
-            reactionDelay: settings.reactionDelay,
-            nextActionTime: 0,
-            nextAbilityTime: Date.now() + settings.abilityCooldown[0],
-            difficulty: this.selectedDifficulty,
-            settings: settings
-        };
-        
-        console.log(`Bot AI initialized with ${this.selectedDifficulty} difficulty:`, settings);
-    }
-    
-    updateBotAI(deltaTime) {
-        if (!this.gameState || !this.botAI) return;
-        
-        const bot = this.gameState.player2;
-        const player = this.gameState.player1;
-        const now = Date.now();
-        const settings = this.botAI.settings;
-        
-        // Bot movement AI - Difficulty-based behavior
-        if (bot.canMove) {
-            const dx = player.x - bot.x;
-            const dy = player.y - bot.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            
-            // Reset velocity
-            bot.vx = 0;
-            bot.vy = 0;
-            
-            // Difficulty-based movement
-            const minDistance = this.selectedDifficulty === 'easy' ? 120 : 
-                               this.selectedDifficulty === 'medium' ? 80 : 60;
-            
-            if (distance > minDistance) {
-                // Bot moves at difficulty-adjusted speed
-                const botSpeed = GAME_CONFIG.PLAYER_SPEED * settings.speedMultiplier;
-                
-                bot.vx = Math.sign(dx) * botSpeed;
-                bot.vy = Math.sign(dy) * botSpeed;
-                
-                // Add randomness based on difficulty
-                const randomness = this.selectedDifficulty === 'easy' ? 0.02 : 
-                                  this.selectedDifficulty === 'medium' ? 0.05 : 0.08;
-                
-                if (Math.random() < randomness) {
-                    bot.vx += (Math.random() - 0.5) * 2;
-                    bot.vy += (Math.random() - 0.5) * 2;
-                }
-                
-                // Defensive behavior based on difficulty
-                if (Math.random() < settings.defensiveBehavior && distance < minDistance + 40) {
-                    bot.vx = -bot.vx * 0.5;
-                    bot.vy = -bot.vy * 0.5;
-                }
-            } else {
-                // When close, sometimes back away (more on easier difficulties)
-                if (Math.random() < settings.defensiveBehavior) {
-                    bot.vx = -Math.sign(dx) * GAME_CONFIG.PLAYER_SPEED * 0.3;
-                    bot.vy = -Math.sign(dy) * GAME_CONFIG.PLAYER_SPEED * 0.3;
-                }
-            }
-            
-            // Apply reverse effect
-            if (bot.reversed) {
-                bot.vx = -bot.vx;
-                bot.vy = -bot.vy;
-            }
-            
-            // Update bot position
-            this.updatePlayerPhysics(bot, deltaTime);
-            
-            // Attack with difficulty-based frequency
-            const attackDistance = this.selectedDifficulty === 'easy' ? 70 : 
-                                  this.selectedDifficulty === 'medium' ? 80 : 90;
-            
-            if (distance < attackDistance && now > this.botAI.nextActionTime) {
-                if (Math.random() < settings.attackChance) {
-                    this.botAttack();
-                    // Difficulty-based cooldown
-                    const cooldownRange = settings.attackCooldown;
-                    const cooldown = cooldownRange[0] + Math.random() * (cooldownRange[1] - cooldownRange[0]);
-                    this.botAI.nextActionTime = now + cooldown;
-                }
-            }
-        }
-        
-        // Bot ability usage - Difficulty-based frequency
-        if (now > this.botAI.nextAbilityTime) {
-            if (Math.random() < settings.abilityChance) {
-                this.botUseAbility();
-                // Difficulty-based ability cooldown
-                const cooldownRange = settings.abilityCooldown;
-                const cooldown = cooldownRange[0] + Math.random() * (cooldownRange[1] - cooldownRange[0]);
-                this.botAI.nextAbilityTime = now + cooldown;
-            }
-        }
-        
-        // Bot ultimate usage - Difficulty-based strategy
-        const ultimateHealthThreshold = this.selectedDifficulty === 'easy' ? 40 : 
-                                       this.selectedDifficulty === 'medium' ? 60 : 70;
-        
-        if (bot.hasUlt && player.health < ultimateHealthThreshold && now > this.botAI.nextActionTime) {
-            if (Math.random() < settings.ultimateChance) {
-                this.botUltimate();
-                this.botAI.nextActionTime = now + 2000; // Cooldown after ultimate
-            }
-        }
-    }
-    
-    // SOLO MODE COMBAT
     handleSoloAttack() {
         const player = this.gameState.player1;
         const bot = this.gameState.player2;
@@ -1173,7 +1152,7 @@ class MemeFighters {
             playMemeSound('miss');
         }
         
-        this.updateUI();
+        this.updateHealthBars();
     }
     
     handleSoloAbility() {
@@ -1223,7 +1202,7 @@ class MemeFighters {
             this.endSoloGame(true);
         }
         
-        this.updateUI();
+        this.updateHealthBars();
     }
     
     handleSoloUltimate() {
@@ -1241,23 +1220,342 @@ class MemeFighters {
         this.addDamageNumber(bot.x, bot.y, 30);
         
         this.showMessage('⚡ ULTIMATE ATTACK! ⚡', 1500);
-        // No sound for ultimate - only hit/miss/gameOver
         
         if (bot.health <= 0) {
             this.endSoloGame(true);
         }
         
-        this.updateUI();
+        this.updateHealthBars();
     }
     
-    // BOT AI ACTIONS
+    // GAME MESSAGE SYSTEM
+    showGameMessage(text, duration = 1000) {
+        console.log('💬 Game message:', text);
+        // Implementation for showing in-game messages
+    }
+    
+    showResultAnimation(playerWon) {
+        // Add result animation effects
+        console.log('🎬 Result animation:', playerWon ? 'WIN' : 'LOSE');
+    }
+}
+
+// TIC TAC TOE GAME CLASS (Placeholder)
+class TicTacToeGame {
+    constructor(socket, playerNumber) {
+        this.socket = socket;
+        this.playerNumber = playerNumber;
+        console.log('❌⭕ Tic Tac Toe game initialized');
+    }
+}
+
+// REACTION CLICK GAME CLASS (Placeholder)
+class ReactionClickGame {
+    constructor(socket, playerNumber) {
+        this.socket = socket;
+        this.playerNumber = playerNumber;
+        console.log('⚡ Reaction Click game initialized');
+    }
+}
+
+// Initialize game hub when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('🚀 DOMContentLoaded event fired');
+    
+    // Immediate button test
+    const createBtn = document.getElementById('createRoomBtn');
+    const joinBtn = document.getElementById('joinRoomBtn');
+    const soloBtn = document.getElementById('playSoloBtn');
+    
+    console.log('🔍 Immediate button check:', {
+        createBtn: !!createBtn,
+        joinBtn: !!joinBtn,
+        soloBtn: !!soloBtn
+    });
+    
+    // Add immediate test listeners
+    if (createBtn) {
+        createBtn.addEventListener('click', () => {
+            console.log('🎯 DIRECT CREATE BUTTON CLICKED!');
+            alert('Direct create button works!');
+        });
+        console.log('✅ Direct create listener added');
+    } else {
+        console.error('❌ createRoomBtn not found!');
+    }
+    
+    if (joinBtn) {
+        joinBtn.addEventListener('click', () => {
+            console.log('🎯 DIRECT JOIN BUTTON CLICKED!');
+            alert('Direct join button works!');
+        });
+        console.log('✅ Direct join listener added');
+    } else {
+        console.error('❌ joinRoomBtn not found!');
+    }
+    
+    if (soloBtn) {
+        soloBtn.addEventListener('click', () => {
+            console.log('🎯 DIRECT SOLO BUTTON CLICKED!');
+            alert('Direct solo button works!');
+        });
+        console.log('✅ Direct solo listener added');
+    } else {
+        console.error('❌ playSoloBtn not found!');
+    }
+    
+    // Small delay to ensure DOM is fully ready
+    setTimeout(() => {
+        console.log('Initializing GameHub...');
+        
+        try {
+            window.gameHub = new GameHub();
+            console.log('GameHub initialized successfully');
+        } catch (error) {
+            console.error('❌ GameHub initialization failed:', error);
+        }
+    }, 100);
+});
+        
+        const player = this.gameState.player1;
+        if (!player) return;
+        
+        this.setPlayerState(player, 'attack');
+        this.addAttackEffect(player);
+        
+        if (this.isSoloMode) {
+            this.handleSoloAttack();
+        }
+    }
+    
+    handleAbility() {
+        if (!this.gameState) return;
+        
+        const player = this.gameState.player1;
+        if (!player) return;
+        
+        this.setPlayerState(player, 'ability');
+        
+        if (this.isSoloMode) {
+            this.handleSoloAbility();
+        }
+    }
+    
+    handleUltimate() {
+        if (!this.gameState) return;
+        
+        const player = this.gameState.player1;
+        if (!player || !player.hasUlt) return;
+        
+        if (this.isSoloMode) {
+            this.handleSoloUltimate();
+        }
+    }
+    
+    handleSoloAttack() {
+        const player = this.gameState.player1;
+        const bot = this.gameState.player2;
+        
+        const distance = Math.sqrt(Math.pow(player.x - bot.x, 2) + Math.pow(player.y - bot.y, 2));
+        
+        if (distance <= 80) {
+            let damage = 10;
+            if (player.sizeBoosted) damage = 20;
+            
+            bot.health = Math.max(0, bot.health - damage);
+            this.setPlayerState(bot, 'hit');
+            this.addHitEffect(bot.x, bot.y);
+            this.addScreenShake(8);
+            this.addDamageNumber(bot.x, bot.y, damage);
+            
+            this.showMessage(player.sizeBoosted ? '💥 MEGA HIT!' : '💥 HIT!', 500);
+            playMemeSound('hit');
+            
+            if (bot.health <= 0) {
+                this.endSoloGame(true);
+            }
+        } else {
+            this.showMessage('❌ MISS!', 500);
+            playMemeSound('miss');
+        }
+        
+        this.updateHealthBars();
+    }
+    
+    handleSoloAbility() {
+        const player = this.gameState.player1;
+        const bot = this.gameState.player2;
+        const ability = player.ability;
+        
+        switch (ability) {
+            case 'size_boost':
+                this.showMessage('📏 SIZE BOOST!', 1500);
+                player.sizeBoosted = true;
+                setTimeout(() => {
+                    if (this.gameState) player.sizeBoosted = false;
+                }, 3000);
+                break;
+                
+            case 'sound_power':
+                this.showMessage('🔊 SONIC BOOM!', 1000);
+                this.createSoundWave(player.x, player.y);
+                
+                const distance = Math.sqrt(Math.pow(player.x - bot.x, 2) + Math.pow(player.y - bot.y, 2));
+                if (distance <= 120) {
+                    bot.health = Math.max(0, bot.health - 25);
+                    this.setPlayerState(bot, 'hit');
+                    this.addHitEffect(bot.x, bot.y);
+                    this.addDamageNumber(bot.x, bot.y, 25);
+                }
+                break;
+                
+            case 'green_projectile':
+                this.showMessage('🟢 TOXIC SHOT!', 1000);
+                this.createProjectile(player.x, player.y, bot.x, bot.y, 'toxic', 15, 1);
+                break;
+                
+            case 'laser_beam':
+                this.showMessage('🔴 LASER EYES!', 1000);
+                this.createLaserBeam(player.x, player.y, bot.x, bot.y);
+                
+                bot.health = Math.max(0, bot.health - 30);
+                this.setPlayerState(bot, 'hit');
+                this.addHitEffect(bot.x, bot.y);
+                this.addDamageNumber(bot.x, bot.y, 30);
+                break;
+        }
+        
+        if (bot.health <= 0) {
+            this.endSoloGame(true);
+        }
+        
+        this.updateHealthBars();
+    }
+    
+    handleSoloUltimate() {
+        const player = this.gameState.player1;
+        const bot = this.gameState.player2;
+        
+        if (!player.hasUlt) return;
+        
+        player.hasUlt = false;
+        bot.health = Math.max(0, bot.health - 30);
+        
+        this.setPlayerState(bot, 'hit');
+        this.addHitEffect(bot.x, bot.y);
+        this.addScreenShake(15);
+        this.addDamageNumber(bot.x, bot.y, 30);
+        
+        this.showMessage('⚡ ULTIMATE ATTACK! ⚡', 1500);
+        
+        if (bot.health <= 0) {
+            this.endSoloGame(true);
+        }
+        
+        this.updateHealthBars();
+    }
+    
+    // BOT AI SYSTEM
+    updateBotAI(deltaTime) {
+        if (!this.gameState || !this.botAI) return;
+        
+        const bot = this.gameState.player2;
+        const player = this.gameState.player1;
+        const now = Date.now();
+        const settings = this.botAI.settings;
+        
+        // Bot movement AI
+        if (bot.canMove) {
+            const dx = player.x - bot.x;
+            const dy = player.y - bot.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // Reset velocity
+            bot.vx = 0;
+            bot.vy = 0;
+            
+            const minDistance = this.selectedDifficulty === 'easy' ? 120 : 
+                               this.selectedDifficulty === 'medium' ? 80 : 60;
+            
+            if (distance > minDistance) {
+                const botSpeed = 5 * settings.speedMultiplier;
+                
+                bot.vx = Math.sign(dx) * botSpeed;
+                bot.vy = Math.sign(dy) * botSpeed;
+                
+                // Add randomness
+                const randomness = this.selectedDifficulty === 'easy' ? 0.02 : 
+                                  this.selectedDifficulty === 'medium' ? 0.05 : 0.08;
+                
+                if (Math.random() < randomness) {
+                    bot.vx += (Math.random() - 0.5) * 2;
+                    bot.vy += (Math.random() - 0.5) * 2;
+                }
+                
+                // Defensive behavior
+                if (Math.random() < settings.defensiveBehavior && distance < minDistance + 40) {
+                    bot.vx = -bot.vx * 0.5;
+                    bot.vy = -bot.vy * 0.5;
+                }
+            } else {
+                // Back away sometimes
+                if (Math.random() < settings.defensiveBehavior) {
+                    bot.vx = -Math.sign(dx) * 5 * 0.3;
+                    bot.vy = -Math.sign(dy) * 5 * 0.3;
+                }
+            }
+            
+            // Apply reverse effect
+            if (bot.reversed) {
+                bot.vx = -bot.vx;
+                bot.vy = -bot.vy;
+            }
+            
+            // Update bot position
+            this.updatePlayerPhysics(bot, deltaTime);
+            
+            // Attack logic
+            const attackDistance = this.selectedDifficulty === 'easy' ? 70 : 
+                                  this.selectedDifficulty === 'medium' ? 80 : 90;
+            
+            if (distance < attackDistance && now > this.botAI.nextActionTime) {
+                if (Math.random() < settings.attackChance) {
+                    this.botAttack();
+                    const cooldownRange = settings.attackCooldown;
+                    const cooldown = cooldownRange[0] + Math.random() * (cooldownRange[1] - cooldownRange[0]);
+                    this.botAI.nextActionTime = now + cooldown;
+                }
+            }
+        }
+        
+        // Bot ability usage
+        if (now > this.botAI.nextAbilityTime) {
+            if (Math.random() < settings.abilityChance) {
+                this.botUseAbility();
+                const cooldownRange = settings.abilityCooldown;
+                const cooldown = cooldownRange[0] + Math.random() * (cooldownRange[1] - cooldownRange[0]);
+                this.botAI.nextAbilityTime = now + cooldown;
+            }
+        }
+        
+        // Bot ultimate usage
+        const ultimateHealthThreshold = this.selectedDifficulty === 'easy' ? 40 : 
+                                       this.selectedDifficulty === 'medium' ? 60 : 70;
+        
+        if (bot.hasUlt && player.health < ultimateHealthThreshold && now > this.botAI.nextActionTime) {
+            if (Math.random() < settings.ultimateChance) {
+                this.botUltimate();
+                this.botAI.nextActionTime = now + 2000;
+            }
+        }
+    }
+    
     botAttack() {
         const bot = this.gameState.player2;
         const player = this.gameState.player1;
         
         this.setPlayerState(bot, 'attack');
         
-        // Fixed distance calculation (was using player.y twice)
         const distance = Math.sqrt(Math.pow(bot.x - player.x, 2) + Math.pow(bot.y - player.y, 2));
         
         if (distance <= 80) {
@@ -1281,31 +1579,7 @@ class MemeFighters {
             playMemeSound('miss');
         }
         
-        this.updateUI();
-    }
-    
-    botUltimate() {
-        const bot = this.gameState.player2;
-        const player = this.gameState.player1;
-        
-        if (!bot.hasUlt) return;
-        
-        bot.hasUlt = false;
-        player.health = Math.max(0, player.health - 30);
-        
-        this.setPlayerState(player, 'hit');
-        this.addHitEffect(player.x, player.y);
-        this.addScreenShake(15);
-        this.addDamageNumber(player.x, player.y, 30);
-        
-        this.showMessage('⚡ BOT ULTIMATE! ⚡', 1500);
-        // No sound for ultimate - only hit/miss/gameOver
-        
-        if (player.health <= 0) {
-            this.endSoloGame(false);
-        }
-        
-        this.updateUI();
+        this.updateHealthBars();
     }
     
     botUseAbility() {
@@ -1337,7 +1611,6 @@ class MemeFighters {
                 break;
                 
             case 'green_projectile':
-                // Bot projectiles move slightly slower for fairness
                 this.createProjectile(bot.x, bot.y, player.x, player.y, 'toxic', 15, 2);
                 this.showMessage('🟢 BOT TOXIC SHOT!', 1000);
                 break;
@@ -1356,19 +1629,109 @@ class MemeFighters {
             this.endSoloGame(false);
         }
         
-        this.updateUI();
+        this.updateHealthBars();
     }
     
-    // WEAPON SYSTEMS
+    botUltimate() {
+        const bot = this.gameState.player2;
+        const player = this.gameState.player1;
+        
+        if (!bot.hasUlt) return;
+        
+        bot.hasUlt = false;
+        player.health = Math.max(0, player.health - 30);
+        
+        this.setPlayerState(player, 'hit');
+        this.addHitEffect(player.x, player.y);
+        this.addScreenShake(15);
+        this.addDamageNumber(player.x, player.y, 30);
+        
+        this.showMessage('⚡ BOT ULTIMATE! ⚡', 1500);
+        
+        if (player.health <= 0) {
+            this.endSoloGame(false);
+        }
+        
+        this.updateHealthBars();
+    }
+    
+    // PROJECTILE SYSTEM
+    updateProjectiles(deltaTime) {
+        for (let i = this.projectiles.length - 1; i >= 0; i--) {
+            const proj = this.projectiles[i];
+            
+            // Move projectile
+            proj.x += proj.vx;
+            proj.y += proj.vy;
+            
+            // Reduce life
+            proj.life -= deltaTime;
+            
+            // Check collision with players
+            if (this.checkProjectileCollisions(proj)) {
+                this.projectiles.splice(i, 1);
+                continue;
+            }
+            
+            // Remove if expired or out of bounds
+            if (proj.life <= 0 || this.isOutOfBounds(proj)) {
+                this.projectiles.splice(i, 1);
+            }
+        }
+    }
+    
+    checkProjectileCollisions(projectile) {
+        if (!this.gameState) return false;
+        
+        const opponent = projectile.owner === 1 ? this.gameState.player2 : this.gameState.player1;
+        if (!opponent) return false;
+        
+        if (this.isColliding(projectile, opponent.hitbox)) {
+            this.handleProjectileHit(projectile, opponent);
+            return true;
+        }
+        
+        return false;
+    }
+    
+    handleProjectileHit(projectile, target) {
+        target.health = Math.max(0, target.health - projectile.damage);
+        
+        this.setPlayerState(target, 'hit');
+        this.addHitEffect(target.x, target.y);
+        this.addScreenShake(8);
+        
+        playMemeSound('hit');
+        this.addDamageNumber(target.x, target.y, projectile.damage);
+        
+        if (target.health <= 0 && this.isSoloMode) {
+            const playerWon = target.id === 'bot';
+            this.endSoloGame(playerWon);
+        }
+        
+        this.updateHealthBars();
+    }
+    
+    isColliding(a, b) {
+        return a.x < b.x + b.width &&
+               a.x + a.width > b.x &&
+               a.y < b.y + b.height &&
+               a.y + a.height > b.y;
+    }
+    
+    isOutOfBounds(obj) {
+        return obj.x < -50 || obj.x > this.canvas.width + 50 ||
+               obj.y < -50 || obj.y > this.canvas.height + 50;
+    }
+    
     createProjectile(startX, startY, targetX, targetY, type, damage, owner) {
         const dx = targetX - startX;
         const dy = targetY - startY;
         const distance = Math.sqrt(dx * dx + dy * dy);
         
-        // Adjust projectile speed based on owner (bot projectiles are slower)
-        let projectileSpeed = GAME_CONFIG.PROJECTILE_SPEED;
-        if (owner === 2) { // Bot projectiles
-            projectileSpeed = GAME_CONFIG.PROJECTILE_SPEED * 0.75; // 25% slower
+        let projectileSpeed = 8;
+        if (owner === 2) {
+            projectileSpeed = 8 * 0.75;
         }
         
         const projectile = {
@@ -1381,15 +1744,13 @@ class MemeFighters {
             type: type,
             damage: damage,
             owner: owner,
-            life: 2000 // 2 seconds
+            life: 2000
         };
         
         this.projectiles.push(projectile);
-        // No sound for projectile creation - only on hit/miss
     }
     
     createLaserBeam(startX, startY, targetX, targetY) {
-        // Add laser animation
         this.animations.push({
             type: 'laser',
             startX: startX,
@@ -1401,11 +1762,9 @@ class MemeFighters {
         });
         
         this.addScreenShake(8);
-        // No sound for laser creation - only on hit/miss
     }
     
     createSoundWave(x, y) {
-        // Add sound wave animation
         this.animations.push({
             type: 'soundwave',
             x: x,
@@ -1417,12 +1776,56 @@ class MemeFighters {
         });
         
         this.addScreenShake(6);
-        // No sound for sound wave creation - only on hit/miss
     }
     
-    // VISUAL EFFECTS - Enhanced for better visibility
+    // PARTICLE SYSTEM
+    updateParticles(deltaTime) {
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const particle = this.particles[i];
+            
+            particle.x += particle.vx;
+            particle.y += particle.vy;
+            
+            if (particle.gravity) {
+                particle.vy += particle.gravity;
+            }
+            
+            particle.life -= deltaTime;
+            
+            if (particle.life <= 0) {
+                this.particles.splice(i, 1);
+            }
+        }
+    }
+    
+    updateAnimations(deltaTime) {
+        for (let i = this.animations.length - 1; i >= 0; i--) {
+            const anim = this.animations[i];
+            
+            anim.time += deltaTime;
+            
+            if (anim.time >= anim.duration) {
+                this.animations.splice(i, 1);
+            }
+        }
+    }
+    
+    updateScreenShake(deltaTime) {
+        if (this.screenShake.intensity > 0) {
+            this.screenShake.intensity -= deltaTime * 0.01;
+            this.screenShake.x = (Math.random() - 0.5) * this.screenShake.intensity;
+            this.screenShake.y = (Math.random() - 0.5) * this.screenShake.intensity;
+        } else {
+            this.screenShake.x = 0;
+            this.screenShake.y = 0;
+        }
+    }
+    
+    addScreenShake(intensity) {
+        this.screenShake.intensity = Math.max(this.screenShake.intensity, intensity);
+    }
+    
     addHitEffect(x, y) {
-        // Add more dramatic hit particles
         for (let i = 0; i < 12; i++) {
             this.particles.push({
                 x: x,
@@ -1435,7 +1838,6 @@ class MemeFighters {
             });
         }
         
-        // Add explosion ring effect
         this.animations.push({
             type: 'explosion',
             x: x,
@@ -1448,7 +1850,6 @@ class MemeFighters {
     }
     
     addAttackEffect(player) {
-        // Add more visible attack particles
         for (let i = 0; i < 8; i++) {
             this.particles.push({
                 x: player.x + (Math.random() - 0.5) * 60,
@@ -1461,7 +1862,6 @@ class MemeFighters {
             });
         }
         
-        // Add attack wave animation
         this.animations.push({
             type: 'attackwave',
             x: player.x,
@@ -1487,7 +1887,89 @@ class MemeFighters {
         });
     }
     
-    // RENDERING SYSTEM - Separated and optimized
+    showMessage(text, duration = 1000) {
+        const messagesEl = document.getElementById('gameMessages');
+        if (!messagesEl) return;
+        
+        messagesEl.textContent = text;
+        messagesEl.classList.add('show');
+        
+        setTimeout(() => {
+            messagesEl.classList.remove('show');
+        }, duration);
+    }
+    
+    endSoloGame(playerWon) {
+        if (this.botAI) {
+            this.botAI = null;
+        }
+        
+        const difficultyMessages = {
+            easy: {
+                win: [
+                    "You beat the sleepy bot 😴",
+                    "Easy mode conquered! 🎉",
+                    "Bot was taking a nap 💤",
+                    "Ready for medium? 🤔"
+                ],
+                lose: [
+                    "Lost to easy mode? 😅",
+                    "The sleepy bot got lucky 😴",
+                    "Even easy bots have feelings 🤖",
+                    "Try again, you got this! 💪"
+                ]
+            },
+            medium: {
+                win: [
+                    "Balanced bot defeated! ⚖️",
+                    "Fair fight, good win! 🏆",
+                    "Medium mode mastered 🎯",
+                    "Ready for hard mode? 😈"
+                ],
+                lose: [
+                    "Medium bot got you 😐",
+                    "Balanced and beaten 📊",
+                    "Fair fight, fair loss 🤝",
+                    "Almost had it! 💪"
+                ]
+            },
+            hard: {
+                win: [
+                    "HARD MODE CONQUERED! 👑",
+                    "You're a meme fighting legend! 🔥",
+                    "The tryhard bot got rekt! 😈",
+                    "Absolute unit performance! 💪"
+                ],
+                lose: [
+                    "Hard bot is ruthless 😈",
+                    "Tryhard mode lived up to its name 💀",
+                    "That bot doesn't mess around 🤖",
+                    "Respect the grind! 💪"
+                ]
+            }
+        };
+        
+        const messages = difficultyMessages[this.selectedDifficulty] || difficultyMessages.medium;
+        const messageList = playerWon ? messages.win : messages.lose;
+        const randomMessage = messageList[Math.floor(Math.random() * messageList.length)];
+        
+        // Show result screen
+        document.getElementById('resultTitle').textContent = playerWon ? '🎉 YOU WIN! 🎉' : '💀 YOU LOSE! 💀';
+        document.getElementById('memeText').textContent = randomMessage;
+        
+        this.showResultAnimation(playerWon);
+        
+        setTimeout(() => {
+            playMemeSound('gameOver');
+        }, 300);
+        
+        // Stop the game loop
+        this.gameState = null;
+        
+        this.showScreen('gameOver');
+    }
+    
+    // RENDERING SYSTEM
     render() {
         if (!this.ctx || !this.gameState) return;
         
@@ -1508,25 +1990,38 @@ class MemeFighters {
     }
     
     renderBackground() {
-        // Neobrutalism background
-        this.ctx.fillStyle = '#E8F5FF';
-        this.ctx.fillRect(0, 0, GAME_CONFIG.CANVAS_WIDTH, GAME_CONFIG.CANVAS_HEIGHT);
+        const width = this.canvas.width;
+        const height = this.canvas.height;
         
-        // Background elements
-        this.ctx.fillStyle = '#FFE066';
-        this.ctx.fillRect(50, 50, 60, 60);
-        this.ctx.strokeStyle = '#000';
+        // Gradient background
+        const gradient = this.ctx.createLinearGradient(0, 0, width, height);
+        gradient.addColorStop(0, '#1a1a2e');
+        gradient.addColorStop(0.5, '#16213e');
+        gradient.addColorStop(1, '#0f3460');
+        
+        this.ctx.fillStyle = gradient;
+        this.ctx.fillRect(0, 0, width, height);
+        
+        // Dynamic background elements
+        const elementSize = Math.min(width, height) * 0.08;
+        
+        // Floating shapes
+        this.ctx.fillStyle = 'rgba(255, 224, 102, 0.1)';
+        this.ctx.fillRect(width * 0.1, height * 0.2, elementSize, elementSize);
+        this.ctx.strokeStyle = 'rgba(255, 224, 102, 0.3)';
         this.ctx.lineWidth = 3;
-        this.ctx.strokeRect(50, 50, 60, 60);
+        this.ctx.strokeRect(width * 0.1, height * 0.2, elementSize, elementSize);
         
-        this.ctx.fillStyle = '#FF6B9D';
-        this.ctx.fillRect(650, 300, 80, 40);
-        this.ctx.strokeRect(650, 300, 80, 40);
+        this.ctx.fillStyle = 'rgba(255, 107, 157, 0.1)';
+        this.ctx.fillRect(width * 0.8, height * 0.7, elementSize * 0.8, elementSize * 0.6);
+        this.ctx.strokeStyle = 'rgba(255, 107, 157, 0.3)';
+        this.ctx.strokeRect(width * 0.8, height * 0.7, elementSize * 0.8, elementSize * 0.6);
         
-        this.ctx.fillStyle = '#00D2FF';
+        this.ctx.fillStyle = 'rgba(0, 210, 255, 0.1)';
         this.ctx.beginPath();
-        this.ctx.arc(700, 80, 30, 0, 2 * Math.PI);
+        this.ctx.arc(width * 0.85, height * 0.15, elementSize * 0.4, 0, 2 * Math.PI);
         this.ctx.fill();
+        this.ctx.strokeStyle = 'rgba(0, 210, 255, 0.3)';
         this.ctx.stroke();
     }
     
@@ -1541,7 +2036,7 @@ class MemeFighters {
         if (!player) return;
         
         const character = CHARACTERS.find(c => c.id === player.characterId) || CHARACTERS[0];
-        const size = GAME_CONFIG.HITBOX_SIZE * player.scale;
+        const size = 80 * player.scale;
         
         // Calculate render position
         let renderX = player.renderX;
@@ -1781,7 +2276,7 @@ class MemeFighters {
                 this.ctx.globalAlpha = 1;
                 
             } else if (anim.type === 'explosion') {
-                // New explosion effect
+                // Explosion effect
                 const progress = anim.time / anim.duration;
                 anim.radius = anim.maxRadius * progress;
                 const alpha = 1 - progress;
@@ -1800,7 +2295,7 @@ class MemeFighters {
                 this.ctx.shadowBlur = 0;
                 
             } else if (anim.type === 'attackwave') {
-                // New attack wave effect
+                // Attack wave effect
                 const progress = anim.time / anim.duration;
                 anim.radius = anim.maxRadius * progress;
                 const alpha = 1 - progress;
@@ -1817,238 +2312,3 @@ class MemeFighters {
             }
         });
     }
-    
-    // FEEDBACK SYSTEMS
-    handleAttackFeedback(data) {
-        if (data.hit) {
-            this.showMessage('💥 HIT!', 500);
-            this.addScreenShake(8);
-            playMemeSound('hit');
-        } else {
-            this.showMessage('❌ MISS!', 500);
-            playMemeSound('miss');
-        }
-    }
-    
-    handleAbilityFeedback(data) {
-        if (!this.gameState) return;
-        
-        const playerNumber = data.player;
-        const ability = data.ability;
-        const player = this.gameState[`player${playerNumber}`];
-        const opponent = playerNumber === 1 ? this.gameState.player2 : this.gameState.player1;
-        
-        if (!player || !opponent) return;
-        
-        // Use server-provided positions if available, otherwise use current positions
-        const attackerPos = data.attackerPos || { x: player.x, y: player.y };
-        const targetPos = data.targetPos || { x: opponent.x, y: opponent.y };
-        
-        // Apply the same visual effects as solo mode
-        switch (ability) {
-            case 'size_boost':
-                this.showMessage('📏 SIZE BOOST!', 1500);
-                player.sizeBoosted = true;
-                setTimeout(() => {
-                    if (this.gameState && player) player.sizeBoosted = false;
-                }, 3000);
-                break;
-                
-            case 'sound_power':
-                this.showMessage('🔊 SONIC BOOM!', 1000);
-                this.createSoundWave(attackerPos.x, attackerPos.y);
-                
-                // Check if opponent is in range for visual feedback
-                const distance = Math.sqrt(Math.pow(attackerPos.x - targetPos.x, 2) + Math.pow(attackerPos.y - targetPos.y, 2));
-                if (distance <= 120) {
-                    this.setPlayerState(opponent, 'hit');
-                    this.addHitEffect(targetPos.x, targetPos.y);
-                    this.addScreenShake(8);
-                    this.addDamageNumber(targetPos.x, targetPos.y, 25);
-                }
-                break;
-                
-            case 'green_projectile':
-                this.showMessage('🟢 TOXIC SHOT!', 1000);
-                this.createProjectile(attackerPos.x, attackerPos.y, targetPos.x, targetPos.y, 'toxic', 15, playerNumber);
-                break;
-                
-            case 'laser_beam':
-                this.showMessage('🔴 LASER EYES!', 1000);
-                this.createLaserBeam(attackerPos.x, attackerPos.y, targetPos.x, targetPos.y);
-                
-                // Visual feedback for laser hit
-                this.setPlayerState(opponent, 'hit');
-                this.addHitEffect(targetPos.x, targetPos.y);
-                this.addScreenShake(10);
-                this.addDamageNumber(targetPos.x, targetPos.y, 30);
-                break;
-                
-            default:
-                this.showMessage('⚡ ABILITY!', 1000);
-                this.addScreenShake(5);
-                break;
-        }
-    }
-    
-    handleGameOver(data) {
-        const isWinner = data.winner === this.playerNumber;
-        document.getElementById('resultTitle').textContent = isWinner ? '🎉 YOU WIN! 🎉' : '💀 YOU LOSE! 💀';
-        document.getElementById('memeText').textContent = isWinner ? 'Victory Royale! 👑' : data.memeText;
-        
-        // Play game over sound with delay to ensure no overlap
-        setTimeout(() => {
-            playMemeSound('gameOver');
-        }, 300);
-        
-        this.showScreen('gameOver');
-    }
-    
-    endSoloGame(playerWon) {
-        if (this.botAI) {
-            this.botAI = null;
-        }
-        
-        const difficultyMessages = {
-            easy: {
-                win: [
-                    "You beat the sleepy bot 😴",
-                    "Easy mode conquered! 🎉",
-                    "Bot was taking a nap 💤",
-                    "Ready for medium? 🤔"
-                ],
-                lose: [
-                    "Lost to easy mode? 😅",
-                    "The sleepy bot got lucky 😴",
-                    "Even easy bots have feelings 🤖",
-                    "Try again, you got this! 💪"
-                ]
-            },
-            medium: {
-                win: [
-                    "Balanced bot defeated! ⚖️",
-                    "Fair fight, good win! 🏆",
-                    "Medium mode mastered 🎯",
-                    "Ready for hard mode? 😈"
-                ],
-                lose: [
-                    "Medium bot got you 😐",
-                    "Balanced and beaten 📊",
-                    "Fair fight, fair loss 🤝",
-                    "Almost had it! 💪"
-                ]
-            },
-            hard: {
-                win: [
-                    "HARD MODE CONQUERED! 👑",
-                    "You're a meme fighting legend! 🔥",
-                    "Tryhard bot got rekt! 😈💀",
-                    "Absolute unit performance! 💪"
-                ],
-                lose: [
-                    "Hard bot is ruthless 😈",
-                    "Tryhard mode lived up to its name 💀",
-                    "That bot doesn't mess around 🤖",
-                    "Respect for trying hard mode! 🫡"
-                ]
-            }
-        };
-        
-        const difficulty = this.selectedDifficulty || 'medium';
-        const messages = difficultyMessages[difficulty];
-        const resultTexts = playerWon ? messages.win : messages.lose;
-        const memeText = resultTexts[Math.floor(Math.random() * resultTexts.length)];
-        
-        document.getElementById('resultTitle').textContent = playerWon ? '🎉 YOU WIN! 🎉' : '💀 YOU LOSE! 💀';
-        document.getElementById('memeText').textContent = memeText;
-        
-        // Play game over sound with delay to ensure no overlap
-        setTimeout(() => {
-            playMemeSound('gameOver');
-        }, 300);
-        
-        this.showScreen('gameOver');
-    }
-    
-    // UI MANAGEMENT
-    updateUI() {
-        if (!this.gameState) return;
-        
-        document.getElementById('p1Health').textContent = this.gameState.player1.health;
-        if (this.gameState.player2) {
-            document.getElementById('p2Health').textContent = this.gameState.player2.health;
-        }
-    }
-    
-    showMessage(text, duration) {
-        const messagesDiv = document.getElementById('messages');
-        messagesDiv.textContent = text;
-        messagesDiv.style.display = 'block';
-        
-        setTimeout(() => {
-            messagesDiv.style.display = 'none';
-        }, duration);
-    }
-    
-    showScreen(screenId) {
-        document.querySelectorAll('.screen').forEach(screen => {
-            screen.classList.add('hidden');
-        });
-        document.getElementById(screenId).classList.remove('hidden');
-    }
-    
-    // AUDIO SYSTEM - Uses meme sounds or fallback to Web Audio API
-    playSound(type) {
-        // Try to play meme sound first
-        if (MEME_SOUNDS.length > 0) {
-            playMemeSound(type);
-            return;
-        }
-        
-        // Fallback to Web Audio API if no meme sounds loaded
-        try {
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            
-            switch (type) {
-                case 'hit':
-                    oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
-                    oscillator.frequency.exponentialRampToValueAtTime(50, audioContext.currentTime + 0.1);
-                    break;
-                case 'shoot':
-                    oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-                    oscillator.frequency.exponentialRampToValueAtTime(400, audioContext.currentTime + 0.1);
-                    break;
-                case 'ultimate':
-                    oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
-                    oscillator.frequency.exponentialRampToValueAtTime(100, audioContext.currentTime + 0.3);
-                    break;
-                case 'sonic':
-                    oscillator.frequency.setValueAtTime(50, audioContext.currentTime);
-                    oscillator.frequency.exponentialRampToValueAtTime(800, audioContext.currentTime + 0.5);
-                    break;
-                case 'laser':
-                    oscillator.frequency.setValueAtTime(1000, audioContext.currentTime);
-                    oscillator.frequency.exponentialRampToValueAtTime(1500, audioContext.currentTime + 0.2);
-                    break;
-            }
-            
-            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-            
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + 0.3);
-        } catch (e) {
-            console.log(`Sound: ${type}`);
-        }
-    }
-}
-
-// Initialize game when page loads
-document.addEventListener('DOMContentLoaded', () => {
-    new MemeFighters();
-});

@@ -66,6 +66,49 @@
             </div>
         </div>
 
+        <!-- GAME SELECT SCREEN -->
+        <div id="gameSelect" class="screen">
+            <div class="screen-content">
+                <h1 class="screen-title">CHOOSE YOUR CHAOS 🎮</h1>
+                
+                <div class="game-selection-grid">
+                    <div class="game-card main-game" data-game="memeFighters">
+                        <div class="game-icon">💀</div>
+                        <h3 class="game-title">MEME FIGHTERS</h3>
+                        <p class="game-subtitle">CHAOS DUEL</p>
+                        <div class="main-badge">MAIN GAME</div>
+                        <p class="game-description">Epic multiplayer fighting with meme characters and abilities</p>
+                    </div>
+                    
+                    <div class="game-card mini-game" data-game="ticTacToe">
+                        <div class="game-icon">❌⭕</div>
+                        <h3 class="game-title">TIC TAC TOE</h3>
+                        <p class="game-subtitle">CLASSIC</p>
+                        <div class="mini-badge">MINI GAME</div>
+                        <p class="game-description">Strategic 3x3 grid battle</p>
+                    </div>
+                    
+                    <div class="game-card mini-game" data-game="reactionClick">
+                        <div class="game-icon">⚡</div>
+                        <h3 class="game-title">REACTION CLICK</h3>
+                        <p class="game-subtitle">SPEED TEST</p>
+                        <div class="mini-badge">MINI GAME</div>
+                        <p class="game-description">Fast reflexes win the day</p>
+                    </div>
+                </div>
+                
+                <div class="game-selection-status">
+                    <div id="gameSelectionInfo" class="selection-info hidden">
+                        <p id="selectionText">Waiting for opponent...</p>
+                        <div class="loading-dots">
+                            <span></span><span></span><span></span>
+                        </div>
+                    </div>
+                    <button id="confirmGameBtn" class="menu-btn primary large hidden">START GAME</button>
+                </div>
+            </div>
+        </div>
+
         <!-- DIFFICULTY SCREEN -->
         <div id="difficultySelect" class="screen">
             <div class="screen-content">
@@ -167,6 +210,66 @@
             </div>
         </div>
 
+        <!-- TIC TAC TOE GAME SCREEN -->
+        <div id="ticTacToe" class="screen">
+            <div class="game-hud">
+                <div class="hud-top">
+                    <div class="player-hud left">
+                        <div class="player-label" id="tttP1Label">Player 1 (X)</div>
+                    </div>
+                    
+                    <div class="vs-indicator">TIC TAC TOE</div>
+                    
+                    <div class="player-hud right">
+                        <div class="player-label" id="tttP2Label">Player 2 (O)</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="tic-tac-toe-container">
+                <div class="current-turn" id="currentTurn">Player 1's Turn</div>
+                <div class="tic-tac-toe-board" id="ticTacToeBoard">
+                    <div class="ttt-cell" data-cell="0"></div>
+                    <div class="ttt-cell" data-cell="1"></div>
+                    <div class="ttt-cell" data-cell="2"></div>
+                    <div class="ttt-cell" data-cell="3"></div>
+                    <div class="ttt-cell" data-cell="4"></div>
+                    <div class="ttt-cell" data-cell="5"></div>
+                    <div class="ttt-cell" data-cell="6"></div>
+                    <div class="ttt-cell" data-cell="7"></div>
+                    <div class="ttt-cell" data-cell="8"></div>
+                </div>
+                <div id="ticTacToeMessages" class="game-messages"></div>
+            </div>
+        </div>
+
+        <!-- REACTION CLICK GAME SCREEN -->
+        <div id="reactionClick" class="screen">
+            <div class="game-hud">
+                <div class="hud-top">
+                    <div class="player-hud left">
+                        <div class="player-label" id="rcP1Label">Player 1</div>
+                        <div class="reaction-score" id="p1Score">0</div>
+                    </div>
+                    
+                    <div class="vs-indicator">REACTION</div>
+                    
+                    <div class="player-hud right">
+                        <div class="player-label" id="rcP2Label">Player 2</div>
+                        <div class="reaction-score" id="p2Score">0</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="reaction-game-container">
+                <div class="reaction-status" id="reactionStatus">Get Ready...</div>
+                <div class="reaction-click-area" id="reactionClickArea">
+                    <div class="click-button" id="clickButton">WAIT...</div>
+                </div>
+                <div id="reactionMessages" class="game-messages"></div>
+            </div>
+        </div>
+
         <!-- GAME SCREEN -->
         <div id="game" class="screen">
             <!-- Game HUD -->
@@ -233,13 +336,17 @@
                     <div class="result-animation" id="resultAnimation"></div>
                     <div id="memeText" class="meme-text"></div>
                     <div class="result-actions">
-                        <button id="copyMemeBtn" class="menu-btn secondary">
-                            <span class="btn-icon">📋</span>
-                            <span class="btn-text">COPY MEME</span>
-                        </button>
                         <button id="playAgainBtn" class="menu-btn primary">
                             <span class="btn-icon">🔄</span>
                             <span class="btn-text">PLAY AGAIN</span>
+                        </button>
+                        <button id="changeGameBtn" class="menu-btn secondary">
+                            <span class="btn-icon">🎮</span>
+                            <span class="btn-text">CHANGE GAME</span>
+                        </button>
+                        <button id="copyMemeBtn" class="menu-btn secondary">
+                            <span class="btn-icon">📋</span>
+                            <span class="btn-text">COPY MEME</span>
                         </button>
                     </div>
                 </div>
