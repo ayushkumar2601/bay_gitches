@@ -250,25 +250,59 @@ io.on('connection', (socket) => {
     
     const ability = attacker.ability;
     
+    // Calculate distance for range-based abilities
+    const distance = Math.sqrt(
+      Math.pow(attacker.x - target.x, 2) + Math.pow(attacker.y - target.y, 2)
+    );
+    
     switch (ability) {
-      case 'freeze':
-        target.canMove = false;
+      case 'size_boost':
+        // Size boost affects the attacker, not the target
+        attacker.sizeBoosted = true;
         setTimeout(() => {
-          target.canMove = true;
-          io.to(playerInfo.roomCode).emit('stateUpdate', room.gameState);
-        }, 2000);
+          if (room.gameState[attackerKey]) {
+            attacker.sizeBoosted = false;
+            io.to(playerInfo.roomCode).emit('stateUpdate', room.gameState);
+          }
+        }, 3000);
         break;
         
-      case 'reverse':
-        target.reversed = true;
-        setTimeout(() => {
-          target.reversed = false;
-          io.to(playerInfo.roomCode).emit('stateUpdate', room.gameState);
-        }, 2000);
+      case 'sound_power':
+        // Sonic boom - area damage within 120 pixels
+        if (distance <= 120) {
+          target.health = Math.max(0, target.health - 25);
+          if (target.health <= 0) {
+            const memeText = memeTexts[Math.floor(Math.random() * memeTexts.length)];
+            io.to(playerInfo.roomCode).emit('gameOver', {
+              winner: playerInfo.playerNumber,
+              loser: playerInfo.playerNumber === 1 ? 2 : 1,
+              memeText
+            });
+          }
+        }
         break;
         
-      case 'burst':
-        target.health = Math.max(0, target.health - 20);
+      case 'green_projectile':
+        // Projectile damage - handled by client-side projectile system
+        // Server just acknowledges the ability use
+        break;
+        
+      case 'laser_beam':
+        // Instant laser damage
+        target.health = Math.max(0, target.health - 30);
+        if (target.health <= 0) {
+          const memeText = memeTexts[Math.floor(Math.random() * memeTexts.length)];
+          io.to(playerInfo.roomCode).emit('gameOver', {
+            winner: playerInfo.playerNumber,
+            loser: playerInfo.playerNumber === 1 ? 2 : 1,
+            memeText
+          });
+        }
+        break;
+        
+      default:
+        // Fallback for unknown abilities
+        target.health = Math.max(0, target.health - 15);
         if (target.health <= 0) {
           const memeText = memeTexts[Math.floor(Math.random() * memeTexts.length)];
           io.to(playerInfo.roomCode).emit('gameOver', {
@@ -282,7 +316,43 @@ io.on('connection', (socket) => {
     
     io.to(playerInfo.roomCode).emit('abilityUsed', { 
       player: playerInfo.playerNumber, 
-      ability 
+      ability,
+      attackerPos: { x: attacker.x, y: attacker.y },
+      targetPos: { x: target.x, y: target.y }
+    });
+    io.to(playerInfo.roomCode).emit('stateUpdate', room.gameState);
+  });
+
+  socket.on('projectileHit', (data) => {
+    const playerInfo = players.get(socket.id);
+    if (!playerInfo) return;
+    
+    const room = rooms.get(playerInfo.roomCode);
+    if (!room || !room.gameStarted) return;
+    
+    const targetKey = data.targetPlayer === 1 ? 'player1' : 'player2';
+    const target = room.gameState[targetKey];
+    
+    if (!target) return;
+    
+    // Apply projectile damage
+    target.health = Math.max(0, target.health - data.damage);
+    
+    // Check for game over
+    if (target.health <= 0) {
+      const memeText = memeTexts[Math.floor(Math.random() * memeTexts.length)];
+      io.to(playerInfo.roomCode).emit('gameOver', {
+        winner: playerInfo.playerNumber,
+        loser: data.targetPlayer,
+        memeText
+      });
+    }
+    
+    // Broadcast hit event and state update
+    io.to(playerInfo.roomCode).emit('projectileHitConfirmed', {
+      targetPlayer: data.targetPlayer,
+      damage: data.damage,
+      position: data.position
     });
     io.to(playerInfo.roomCode).emit('stateUpdate', room.gameState);
   });

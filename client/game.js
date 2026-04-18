@@ -64,21 +64,22 @@ const MEME_SOUNDS = [];
 let masterVolume = 0.7;
 let lastSoundTime = 0;
 let audioMuted = false;
-let startupSoundPlayed = false;
+let currentlyPlayingAudio = null;
+let lastPlayedIndex = -1; // Track last played sound to ensure variety
 
 // Preload audio files with actual names
 function preloadAudio() {
     const audioFiles = [
-        'cid.mp3.mpeg',           // Startup sound
-        'aayein.mp3.mpeg',        // Hit/Miss/GameOver pool
-        'amongus.mp3.mpeg',       // Hit/Miss/GameOver pool  
-        'bruh.mp3.mpeg',          // Hit/Miss/GameOver pool
-        'faah.mp3.mpeg',          // Hit/Miss/GameOver pool
-        'khatam.mp3.mpeg',        // Hit/Miss/GameOver pool
-        'laughing.mp3.mpeg',      // Hit/Miss/GameOver pool
-        'modibhujyam.mp3.mpeg',   // Hit/Miss/GameOver pool
-        'modibkl.mp3.mpeg',       // Hit/Miss/GameOver pool
-        'rukozara.mp3.mpeg'       // Hit/Miss/GameOver pool
+        'cid.mp3.mpeg',           // Character selection sound
+        'aayein.mp3.mpeg',        // Fight sounds pool
+        'amongus.mp3.mpeg',       // Fight sounds pool  
+        'bruh.mp3.mpeg',          // Fight sounds pool
+        'faah.mp3.mpeg',          // Fight sounds pool
+        'khatam.mp3.mpeg',        // Fight sounds pool
+        'laughing.mp3.mpeg',      // Fight sounds pool
+        'modibhujyam.mp3.mpeg',   // Fight sounds pool
+        'modibkl.mp3.mpeg',       // Fight sounds pool
+        'rukozara.mp3.mpeg'       // Fight sounds pool
     ];
     
     audioFiles.forEach((file, index) => {
@@ -98,78 +99,102 @@ function preloadAudio() {
     });
 }
 
-// Play audio for specific events with 4-second limit
+// Stop any currently playing audio to prevent overlap
+function stopCurrentAudio() {
+    if (currentlyPlayingAudio) {
+        currentlyPlayingAudio.pause();
+        currentlyPlayingAudio.currentTime = 0;
+        currentlyPlayingAudio = null;
+    }
+}
+
+// Get truly random index ensuring variety (no consecutive repeats)
+function getRandomSoundIndex(poolStart = 0, poolEnd = MEME_SOUNDS.length - 1) {
+    if (poolEnd - poolStart <= 0) return poolStart;
+    
+    let randomIndex;
+    let attempts = 0;
+    
+    do {
+        randomIndex = poolStart + Math.floor(Math.random() * (poolEnd - poolStart + 1));
+        attempts++;
+    } while (randomIndex === lastPlayedIndex && attempts < 10 && (poolEnd - poolStart) > 1);
+    
+    lastPlayedIndex = randomIndex;
+    return randomIndex;
+}
+
+// Play audio for specific events with 4-second limit and no overlap
 function playMemeSound(eventType = 'random') {
     if (audioMuted || MEME_SOUNDS.length === 0) return;
     
     const now = Date.now();
-    const minInterval = 300; // Anti-spam protection
+    const minInterval = 100; // Reduced interval for better responsiveness
     
     if (now - lastSoundTime < minInterval) return;
     
     try {
         // Only play sounds for specific events
-        const allowedEvents = ['hit', 'miss', 'gameOver', 'startup'];
+        const allowedEvents = ['hit', 'miss', 'gameOver', 'characterSelect'];
         if (!allowedEvents.includes(eventType)) return;
         
-        let sound;
+        // Stop any currently playing audio to prevent overlap
+        stopCurrentAudio();
         
-        if (eventType === 'startup') {
-            // Use cid.mp3.mpeg for startup (index 0)
+        let sound;
+        let soundIndex;
+        
+        if (eventType === 'characterSelect') {
+            // Use cid.mp3.mpeg for character selection (index 0)
+            soundIndex = 0;
             sound = MEME_SOUNDS[0];
         } else {
-            // Use random sound from the pool (indices 1-9) for hit/miss/gameOver
-            const randomIndex = 1 + Math.floor(Math.random() * (MEME_SOUNDS.length - 1));
-            sound = MEME_SOUNDS[randomIndex];
+            // Use truly random sound from ALL files (indices 0-9) for hit/miss/gameOver
+            soundIndex = getRandomSoundIndex(0, MEME_SOUNDS.length - 1);
+            sound = MEME_SOUNDS[soundIndex];
         }
         
-        // Clone audio for overlapping sounds
+        // Clone audio for independent control
         const soundClone = sound.cloneNode();
         soundClone.volume = masterVolume;
         soundClone.currentTime = 0;
         
+        // Set as currently playing
+        currentlyPlayingAudio = soundClone;
+        
         // Play only first 4 seconds
         soundClone.play().then(() => {
-            setTimeout(() => {
-                soundClone.pause();
-                soundClone.currentTime = 0;
+            const timeoutId = setTimeout(() => {
+                if (currentlyPlayingAudio === soundClone) {
+                    soundClone.pause();
+                    soundClone.currentTime = 0;
+                    currentlyPlayingAudio = null;
+                }
             }, 4000); // Stop after 4 seconds
+            
+            // Clear timeout if audio ends naturally
+            soundClone.addEventListener('ended', () => {
+                clearTimeout(timeoutId);
+                if (currentlyPlayingAudio === soundClone) {
+                    currentlyPlayingAudio = null;
+                }
+            });
+            
         }).catch(e => console.warn('Audio play failed:', e));
         
         lastSoundTime = now;
-        console.log(`Playing meme sound for: ${eventType}`);
+        console.log(`Playing sound ${soundIndex} (${MEME_SOUNDS[soundIndex] ? 'loaded' : 'loading'}) for: ${eventType}`);
     } catch (error) {
         console.warn('Error playing meme sound:', error);
-    }
-}
-
-// Play startup sound (CID audio)
-function playStartupSound() {
-    if (startupSoundPlayed || audioMuted || MEME_SOUNDS.length === 0) return;
-    
-    try {
-        // Use cid.mp3.mpeg as startup sound (index 0)
-        const startupAudio = MEME_SOUNDS[0].cloneNode();
-        startupAudio.volume = masterVolume * 0.8; // Slightly quieter for startup
-        startupAudio.currentTime = 0;
-        
-        startupAudio.play().then(() => {
-            setTimeout(() => {
-                startupAudio.pause();
-                startupAudio.currentTime = 0;
-            }, 4000); // Stop after 4 seconds
-        }).catch(e => console.warn('Startup audio play failed:', e));
-        
-        startupSoundPlayed = true;
-        console.log('Playing startup sound: cid.mp3.mpeg (first 4 seconds)');
-    } catch (error) {
-        console.warn('Error playing startup sound:', error);
     }
 }
 
 // Audio control functions
 function toggleMute() {
     audioMuted = !audioMuted;
+    if (audioMuted) {
+        stopCurrentAudio();
+    }
     console.log('Audio muted:', audioMuted);
 }
 
@@ -178,16 +203,14 @@ function setVolume(volume) {
     MEME_SOUNDS.forEach(sound => {
         sound.volume = masterVolume;
     });
+    if (currentlyPlayingAudio) {
+        currentlyPlayingAudio.volume = masterVolume;
+    }
 }
 
 // Initialize audio system
 document.addEventListener('DOMContentLoaded', () => {
     preloadAudio();
-    
-    // Play startup sound after a short delay to ensure audio is loaded
-    setTimeout(() => {
-        playStartupSound();
-    }, 2000);
 });
 
 class MemeFighters {
@@ -369,6 +392,11 @@ class MemeFighters {
             this.handleAbilityFeedback(data);
         });
         
+        this.socket.on('projectileHitConfirmed', (data) => {
+            // Server confirmed projectile hit - update UI
+            this.updateUI();
+        });
+        
         this.socket.on('ultimateUsed', (data) => {
             this.showMessage('⚡ ULTIMATE ATTACK! ⚡', 1500);
             this.addScreenShake(10);
@@ -447,6 +475,17 @@ class MemeFighters {
     // CHARACTER SELECTION
     showCharacterSelection() {
         this.showScreen('characterSelect');
+        // Play CID sound when character selection screen appears
+        setTimeout(() => {
+            playMemeSound('characterSelect');
+        }, 500); // Small delay to ensure screen transition
+    }
+    showCharacterSelection() {
+        this.showScreen('characterSelect');
+        // Play CID sound when character selection screen appears
+        setTimeout(() => {
+            playMemeSound('characterSelect');
+        }, 500); // Small delay to ensure screen transition
     }
     
     selectCharacter(characterId) {
@@ -732,7 +771,25 @@ class MemeFighters {
     }
     
     handleProjectileHit(projectile, target) {
-        // Apply damage
+        // In multiplayer mode, send hit to server for validation
+        if (!this.isSoloMode) {
+            const targetPlayerNumber = target === this.gameState.player1 ? 1 : 2;
+            this.socket.emit('projectileHit', {
+                targetPlayer: targetPlayerNumber,
+                damage: projectile.damage,
+                position: { x: target.x, y: target.y }
+            });
+            
+            // Visual feedback only (server will update health)
+            this.setPlayerState(target, 'hit');
+            this.addHitEffect(target.x, target.y);
+            this.addScreenShake(8);
+            playMemeSound('hit');
+            this.addDamageNumber(target.x, target.y, projectile.damage);
+            return;
+        }
+        
+        // Solo mode - handle damage locally
         target.health = Math.max(0, target.health - projectile.damage);
         
         // Visual feedback with enhanced animations
@@ -1774,17 +1831,64 @@ class MemeFighters {
     }
     
     handleAbilityFeedback(data) {
-        const abilityNames = {
-            size_boost: '📏 SIZE BOOST!',
-            sound_power: '🔊 SONIC BOOM!',
-            green_projectile: '🟢 TOXIC SHOT!',
-            laser_beam: '🔴 LASER EYES!'
-        };
+        if (!this.gameState) return;
         
-        const message = abilityNames[data.ability] || '⚡ ABILITY!';
-        this.showMessage(message, 1000);
-        this.addScreenShake(5);
-        // No sound for abilities - only hit/miss/gameOver
+        const playerNumber = data.player;
+        const ability = data.ability;
+        const player = this.gameState[`player${playerNumber}`];
+        const opponent = playerNumber === 1 ? this.gameState.player2 : this.gameState.player1;
+        
+        if (!player || !opponent) return;
+        
+        // Use server-provided positions if available, otherwise use current positions
+        const attackerPos = data.attackerPos || { x: player.x, y: player.y };
+        const targetPos = data.targetPos || { x: opponent.x, y: opponent.y };
+        
+        // Apply the same visual effects as solo mode
+        switch (ability) {
+            case 'size_boost':
+                this.showMessage('📏 SIZE BOOST!', 1500);
+                player.sizeBoosted = true;
+                setTimeout(() => {
+                    if (this.gameState && player) player.sizeBoosted = false;
+                }, 3000);
+                break;
+                
+            case 'sound_power':
+                this.showMessage('🔊 SONIC BOOM!', 1000);
+                this.createSoundWave(attackerPos.x, attackerPos.y);
+                
+                // Check if opponent is in range for visual feedback
+                const distance = Math.sqrt(Math.pow(attackerPos.x - targetPos.x, 2) + Math.pow(attackerPos.y - targetPos.y, 2));
+                if (distance <= 120) {
+                    this.setPlayerState(opponent, 'hit');
+                    this.addHitEffect(targetPos.x, targetPos.y);
+                    this.addScreenShake(8);
+                    this.addDamageNumber(targetPos.x, targetPos.y, 25);
+                }
+                break;
+                
+            case 'green_projectile':
+                this.showMessage('🟢 TOXIC SHOT!', 1000);
+                this.createProjectile(attackerPos.x, attackerPos.y, targetPos.x, targetPos.y, 'toxic', 15, playerNumber);
+                break;
+                
+            case 'laser_beam':
+                this.showMessage('🔴 LASER EYES!', 1000);
+                this.createLaserBeam(attackerPos.x, attackerPos.y, targetPos.x, targetPos.y);
+                
+                // Visual feedback for laser hit
+                this.setPlayerState(opponent, 'hit');
+                this.addHitEffect(targetPos.x, targetPos.y);
+                this.addScreenShake(10);
+                this.addDamageNumber(targetPos.x, targetPos.y, 30);
+                break;
+                
+            default:
+                this.showMessage('⚡ ABILITY!', 1000);
+                this.addScreenShake(5);
+                break;
+        }
     }
     
     handleGameOver(data) {
@@ -1792,8 +1896,10 @@ class MemeFighters {
         document.getElementById('resultTitle').textContent = isWinner ? '🎉 YOU WIN! 🎉' : '💀 YOU LOSE! 💀';
         document.getElementById('memeText').textContent = isWinner ? 'Victory Royale! 👑' : data.memeText;
         
-        // Play game over sound
-        playMemeSound('gameOver');
+        // Play game over sound with delay to ensure no overlap
+        setTimeout(() => {
+            playMemeSound('gameOver');
+        }, 300);
         
         this.showScreen('gameOver');
     }
@@ -1856,8 +1962,10 @@ class MemeFighters {
         document.getElementById('resultTitle').textContent = playerWon ? '🎉 YOU WIN! 🎉' : '💀 YOU LOSE! 💀';
         document.getElementById('memeText').textContent = memeText;
         
-        // Play game over sound
-        playMemeSound('gameOver');
+        // Play game over sound with delay to ensure no overlap
+        setTimeout(() => {
+            playMemeSound('gameOver');
+        }, 300);
         
         this.showScreen('gameOver');
     }

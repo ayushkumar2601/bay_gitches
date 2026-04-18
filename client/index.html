@@ -7,123 +7,243 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="menu" class="screen">
-        <h1>🥊 MEME FIGHTERS: CHAOS DUEL 🥊</h1>
-        <div class="menu-buttons">
-            <button id="createRoomBtn" class="btn">CREATE ROOM</button>
-            <button id="joinRoomBtn" class="btn">JOIN ROOM</button>
-            <button id="playSoloBtn" class="btn solo">PLAY SOLO 🤖</button>
-        </div>
+    <!-- Animated Background -->
+    <div class="animated-bg">
+        <div class="floating-particle"></div>
+        <div class="floating-particle"></div>
+        <div class="floating-particle"></div>
+        <div class="floating-particle"></div>
+        <div class="floating-particle"></div>
+    </div>
+
+    <!-- Screen Container -->
+    <div id="screenContainer">
         
-        <div id="joinRoomInput" class="hidden">
-            <input type="text" id="roomCodeInput" placeholder="Enter 4-digit room code" maxlength="4">
-            <button id="joinBtn" class="btn">JOIN</button>
-            <button id="cancelBtn" class="btn secondary">CANCEL</button>
-        </div>
-        
-        <div id="roomInfo" class="hidden">
-            <h2>Room Created!</h2>
-            <p>Room Code: <span id="roomCode" class="room-code"></span></p>
-            <p>Waiting for opponent...</p>
-        </div>
-    </div>
+        <!-- LOBBY SCREEN -->
+        <div id="lobby" class="screen active">
+            <div class="screen-content">
+                <h1 class="game-title">
+                    <span class="title-word">MEME</span>
+                    <span class="title-word">FIGHTERS</span>
+                    <span class="title-subtitle">CHAOS DUEL</span>
+                </h1>
+                
+                <div class="main-menu">
+                    <button id="createRoomBtn" class="menu-btn primary">
+                        <span class="btn-icon">🏠</span>
+                        <span class="btn-text">CREATE ROOM</span>
+                    </button>
+                    <button id="joinRoomBtn" class="menu-btn secondary">
+                        <span class="btn-icon">🚪</span>
+                        <span class="btn-text">JOIN ROOM</span>
+                    </button>
+                    <button id="playSoloBtn" class="menu-btn solo">
+                        <span class="btn-icon">🤖</span>
+                        <span class="btn-text">PLAY SOLO</span>
+                    </button>
+                </div>
 
-    <div id="difficultySelect" class="screen hidden">
-        <h1>🎯 SELECT DIFFICULTY 🎯</h1>
-        <div class="difficulty-grid">
-            <div class="difficulty-card" data-difficulty="easy">
-                <div class="difficulty-icon">😴</div>
-                <h3>EASY</h3>
-                <p>Sleepy Bot</p>
-                <p class="difficulty-desc">"Bot moves slow, attacks rarely, perfect for beginners"</p>
-            </div>
-            <div class="difficulty-card" data-difficulty="medium">
-                <div class="difficulty-icon">😐</div>
-                <h3>MEDIUM</h3>
-                <p>Balanced Bot</p>
-                <p class="difficulty-desc">"Fair fight, good challenge for most players"</p>
-            </div>
-            <div class="difficulty-card" data-difficulty="hard">
-                <div class="difficulty-icon">😈</div>
-                <h3>HARD</h3>
-                <p>Tryhard Bot</p>
-                <p class="difficulty-desc">"Fast, aggressive, uses abilities frequently"</p>
-            </div>
-        </div>
-        <button id="confirmDifficultyBtn" class="btn hidden">CONTINUE TO CHARACTER SELECT</button>
-    </div>
-
-    <div id="characterSelect" class="screen hidden">
-        <h1>🎭 SELECT YOUR FIGHTER 🎭</h1>
-        <div class="character-grid">
-            <div class="character-card" data-character="1">
-                <div class="character-avatar">
-                    <img src="/public/1.jpeg" alt="Size Beast" class="character-image">
+                <div id="joinRoomInput" class="input-section hidden">
+                    <h2>Enter Room Code</h2>
+                    <input type="text" id="roomCodeInput" placeholder="4-DIGIT CODE" maxlength="4">
+                    <div class="input-buttons">
+                        <button id="joinBtn" class="menu-btn primary">JOIN</button>
+                        <button id="cancelBtn" class="menu-btn secondary">CANCEL</button>
+                    </div>
                 </div>
-                <h3>Size Beast</h3>
-                <p>Ability: Size Boost 📏</p>
-                <p class="character-desc">"Grows massive for power"</p>
-            </div>
-            <div class="character-card" data-character="2">
-                <div class="character-avatar">
-                    <img src="/public/2.jpeg" alt="Sound Blaster" class="character-image">
-                </div>
-                <h3>Sound Blaster</h3>
-                <p>Ability: Sonic Boom 🔊</p>
-                <p class="character-desc">"Sonic boom devastation"</p>
-            </div>
-            <div class="character-card" data-character="3">
-                <div class="character-avatar">
-                    <img src="/public/3.jpeg" alt="Toxic Thrower" class="character-image">
-                </div>
-                <h3>Toxic Thrower</h3>
-                <p>Ability: Green Projectile 🟢</p>
-                <p class="character-desc">"Throws toxic waste"</p>
-            </div>
-            <div class="character-card" data-character="4">
-                <div class="character-avatar">
-                    <img src="/public/4.jpeg" alt="Laser Eyes" class="character-image">
-                </div>
-                <h3>Laser Eyes</h3>
-                <p>Ability: Laser Beam 🔴</p>
-                <p class="character-desc">"Deadly eye lasers"</p>
-            </div>
-        </div>
-        <button id="confirmCharacterBtn" class="btn hidden">READY TO FIGHT!</button>
-    </div>
-
-    <div id="game" class="screen hidden">
-        <div class="game-ui">
-            <div class="player-info">
-                <div class="player-stats">
-                    <div><span id="p1Label">Player 1</span> HP: <span id="p1Health">100</span></div>
-                    <div><span id="p2Label">Player 2</span> HP: <span id="p2Health">100</span></div>
-                </div>
-                <div class="abilities">
-                    <div>P1 Ability: <span id="p1Ability">-</span></div>
-                    <div>P2 Ability: <span id="p2Ability">-</span></div>
-                </div>
-            </div>
-            <div class="controls">
-                <div>Move: Arrow Keys / WASD</div>
-                <div>Attack: SPACE | Ability: E | Ultimate: Q</div>
-                <div>
-                    <button onclick="toggleMute()" class="btn-small">🔊 MUTE</button>
-                    <button onclick="setVolume(0.3)" class="btn-small">🔉 LOW</button>
-                    <button onclick="setVolume(0.7)" class="btn-small">🔊 HIGH</button>
+                
+                <div id="roomInfo" class="room-info hidden">
+                    <h2>Room Created!</h2>
+                    <div class="room-code-display">
+                        <span class="room-code-label">ROOM CODE</span>
+                        <span id="roomCode" class="room-code-value"></span>
+                    </div>
+                    <p class="waiting-text">Waiting for opponent...</p>
+                    <div class="loading-dots">
+                        <span></span><span></span><span></span>
+                    </div>
                 </div>
             </div>
         </div>
-        <canvas id="gameCanvas" width="800" height="400"></canvas>
-        <div id="messages"></div>
-    </div>
 
-    <div id="gameOver" class="screen hidden">
-        <div class="result-container">
-            <h1 id="resultTitle">GAME OVER</h1>
-            <div id="memeText" class="meme-text"></div>
-            <button id="copyMemeBtn" class="btn">COPY MEME TO CLIPBOARD</button>
-            <button id="playAgainBtn" class="btn">PLAY AGAIN</button>
+        <!-- DIFFICULTY SCREEN -->
+        <div id="difficultySelect" class="screen">
+            <div class="screen-content">
+                <h1 class="screen-title">SELECT DIFFICULTY</h1>
+                
+                <div class="difficulty-grid">
+                    <div class="difficulty-card" data-difficulty="easy">
+                        <div class="card-icon">😴</div>
+                        <h3 class="card-title">EASY</h3>
+                        <p class="card-subtitle">Sleepy Bot</p>
+                        <p class="card-description">Bot moves slow, attacks rarely, perfect for beginners</p>
+                    </div>
+                    <div class="difficulty-card" data-difficulty="medium">
+                        <div class="card-icon">😐</div>
+                        <h3 class="card-title">MEDIUM</h3>
+                        <p class="card-subtitle">Balanced Bot</p>
+                        <p class="card-description">Fair fight, good challenge for most players</p>
+                    </div>
+                    <div class="difficulty-card" data-difficulty="hard">
+                        <div class="card-icon">😈</div>
+                        <h3 class="card-title">HARD</h3>
+                        <p class="card-subtitle">Tryhard Bot</p>
+                        <p class="card-description">Fast, aggressive, uses abilities frequently</p>
+                    </div>
+                </div>
+                
+                <button id="confirmDifficultyBtn" class="menu-btn primary large hidden">CONTINUE</button>
+            </div>
+        </div>
+
+        <!-- CHARACTER SELECT SCREEN -->
+        <div id="characterSelect" class="screen">
+            <div class="screen-content">
+                <h1 class="screen-title">CHOOSE YOUR FIGHTER</h1>
+                
+                <div class="character-grid">
+                    <div class="character-card" data-character="1">
+                        <div class="character-portrait">
+                            <img src="/public/1.jpeg" alt="Size Beast" class="character-image">
+                            <div class="character-glow"></div>
+                        </div>
+                        <div class="character-info">
+                            <h3 class="character-name">SIZE BEAST</h3>
+                            <div class="ability-badge">
+                                <span class="ability-icon">📏</span>
+                                <span class="ability-name">SIZE BOOST</span>
+                            </div>
+                            <p class="character-desc">Grows massive for devastating power</p>
+                        </div>
+                    </div>
+                    
+                    <div class="character-card" data-character="2">
+                        <div class="character-portrait">
+                            <img src="/public/2.jpeg" alt="Sound Blaster" class="character-image">
+                            <div class="character-glow"></div>
+                        </div>
+                        <div class="character-info">
+                            <h3 class="character-name">SOUND BLASTER</h3>
+                            <div class="ability-badge">
+                                <span class="ability-icon">🔊</span>
+                                <span class="ability-name">SONIC BOOM</span>
+                            </div>
+                            <p class="character-desc">Sonic boom devastation</p>
+                        </div>
+                    </div>
+                    
+                    <div class="character-card" data-character="3">
+                        <div class="character-portrait">
+                            <img src="/public/3.jpeg" alt="Toxic Thrower" class="character-image">
+                            <div class="character-glow"></div>
+                        </div>
+                        <div class="character-info">
+                            <h3 class="character-name">TOXIC THROWER</h3>
+                            <div class="ability-badge">
+                                <span class="ability-icon">🟢</span>
+                                <span class="ability-name">TOXIC SHOT</span>
+                            </div>
+                            <p class="character-desc">Throws deadly toxic waste</p>
+                        </div>
+                    </div>
+                    
+                    <div class="character-card" data-character="4">
+                        <div class="character-portrait">
+                            <img src="/public/4.jpeg" alt="Laser Eyes" class="character-image">
+                            <div class="character-glow"></div>
+                        </div>
+                        <div class="character-info">
+                            <h3 class="character-name">LASER EYES</h3>
+                            <div class="ability-badge">
+                                <span class="ability-icon">🔴</span>
+                                <span class="ability-name">LASER BEAM</span>
+                            </div>
+                            <p class="character-desc">Deadly precision eye lasers</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <button id="confirmCharacterBtn" class="menu-btn primary large hidden">READY TO FIGHT!</button>
+            </div>
+        </div>
+
+        <!-- GAME SCREEN -->
+        <div id="game" class="screen">
+            <!-- Game HUD -->
+            <div class="game-hud">
+                <div class="hud-top">
+                    <div class="player-hud left">
+                        <div class="player-label" id="p1Label">Player 1</div>
+                        <div class="health-container">
+                            <div class="health-bar">
+                                <div class="health-fill" id="p1HealthBar"></div>
+                                <div class="health-text" id="p1Health">100</div>
+                            </div>
+                        </div>
+                        <div class="ability-info">
+                            <span class="ability-label">Ability:</span>
+                            <span class="ability-name" id="p1Ability">-</span>
+                        </div>
+                    </div>
+                    
+                    <div class="vs-indicator">VS</div>
+                    
+                    <div class="player-hud right">
+                        <div class="player-label" id="p2Label">Player 2</div>
+                        <div class="health-container">
+                            <div class="health-bar">
+                                <div class="health-fill" id="p2HealthBar"></div>
+                                <div class="health-text" id="p2Health">100</div>
+                            </div>
+                        </div>
+                        <div class="ability-info">
+                            <span class="ability-label">Ability:</span>
+                            <span class="ability-name" id="p2Ability">-</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="hud-bottom">
+                    <div class="controls-hint">
+                        <span>MOVE: WASD/Arrows</span>
+                        <span>ATTACK: SPACE</span>
+                        <span>ABILITY: E</span>
+                        <span>ULTIMATE: Q</span>
+                    </div>
+                    <div class="audio-controls">
+                        <button onclick="toggleMute()" class="audio-btn" id="muteBtn">🔊</button>
+                        <button onclick="setVolume(0.3)" class="audio-btn">🔉</button>
+                        <button onclick="setVolume(0.7)" class="audio-btn">🔊</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Fullscreen Game Canvas -->
+            <canvas id="gameCanvas"></canvas>
+            
+            <!-- Game Messages -->
+            <div id="gameMessages" class="game-messages"></div>
+        </div>
+
+        <!-- RESULT SCREEN -->
+        <div id="gameOver" class="screen">
+            <div class="screen-content">
+                <div class="result-container">
+                    <h1 id="resultTitle" class="result-title">GAME OVER</h1>
+                    <div class="result-animation" id="resultAnimation"></div>
+                    <div id="memeText" class="meme-text"></div>
+                    <div class="result-actions">
+                        <button id="copyMemeBtn" class="menu-btn secondary">
+                            <span class="btn-icon">📋</span>
+                            <span class="btn-text">COPY MEME</span>
+                        </button>
+                        <button id="playAgainBtn" class="menu-btn primary">
+                            <span class="btn-icon">🔄</span>
+                            <span class="btn-text">PLAY AGAIN</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
